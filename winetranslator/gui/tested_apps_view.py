@@ -180,11 +180,19 @@ class TestedAppsView(Gtk.Box):
         category_label.add_css_class("caption")
         info_box.append(category_label)
 
+        # Check if already installed
+        is_installed = self._is_app_installed(app['name'])
+
         # Install button
-        install_button = Gtk.Button(label="Download & Install")
-        install_button.add_css_class("suggested-action")
-        install_button.set_valign(Gtk.Align.CENTER)
-        install_button.connect("clicked", self._on_install_clicked, app)
+        if is_installed:
+            install_button = Gtk.Button(label="Installed")
+            install_button.set_sensitive(False)
+            install_button.set_valign(Gtk.Align.CENTER)
+        else:
+            install_button = Gtk.Button(label="Download & Install")
+            install_button.add_css_class("suggested-action")
+            install_button.set_valign(Gtk.Align.CENTER)
+            install_button.connect("clicked", self._on_install_clicked, app)
         header.append(install_button)
 
         # Description
@@ -212,6 +220,22 @@ class TestedAppsView(Gtk.Box):
             notes_box.append(notes_label)
 
         return row
+
+    def _is_app_installed(self, app_name):
+        """Check if an app is already installed in the library."""
+        try:
+            # Check database for apps with matching name
+            from ..core.app_launcher import AppLauncher
+            launcher = AppLauncher(self.db)
+            all_apps = launcher.get_all_applications()
+
+            for installed_app in all_apps:
+                if app_name.lower() in installed_app['name'].lower():
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Error checking if app is installed: {e}")
+            return False
 
     def _on_category_changed(self, dropdown, param):
         """Handle category filter change."""
