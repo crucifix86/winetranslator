@@ -362,6 +362,32 @@ class TestedAppsView(Gtk.Box):
                     GLib.idle_add(self._on_install_error, f"Failed to create prefix: {msg}", progress_dialog)
                     return
 
+                # Run the installer first
+                GLib.idle_add(lambda: progress_dialog.set_body("Running installer..."))
+                logger.info(f"Running installer: {dest_path}")
+
+                import subprocess
+                env = os.environ.copy()
+                env['WINEPREFIX'] = prefix['path']
+                result = subprocess.run(
+                    [prefix.get('runner_path', 'wine'), dest_path],
+                    env=env,
+                    capture_output=True,
+                    text=True
+                )
+
+                logger.info(f"Installer completed with return code: {result.returncode}")
+
+                # Now search for the installed .exe in common locations
+                GLib.idle_add(lambda: progress_dialog.set_body("Locating installed application..."))
+                installed_exe = self._find_installed_exe(prefix['path'], app['name'])
+
+                if not installed_exe:
+                    logger.warning(f"Could not find installed .exe for {app['name']}, using installer path")
+                    installed_exe = dest_path
+
+                logger.info(f"Using executable path: {installed_exe}")
+
                 # Add to database
                 GLib.idle_add(lambda: progress_dialog.set_body("Adding to library..."))
                 from ..core.app_launcher import AppLauncher
@@ -369,7 +395,7 @@ class TestedAppsView(Gtk.Box):
 
                 success, message, app_id = launcher.add_application(
                     name=app['name'],
-                    executable_path=dest_path,
+                    executable_path=installed_exe,
                     prefix_id=prefix_id,
                     description=app['description']
                 )
@@ -548,3 +574,58 @@ class TestedAppsView(Gtk.Box):
         dialog.present()
 
         return False
+
+    def _find_installed_exe(self, prefix_path, app_name):
+        """Search for the installed .exe file in common Wine locations."""
+        logger.info(f"Searching for installed .exe for {app_name} in {prefix_path}")
+
+        # Common installation directories
+        drive_c = os.path.join(prefix_path, 'drive_c')
+        search_paths = [
+            os.path.join(drive_c, 'Program Files', app_name),
+            os.path.join(drive_c, 'Program Files (x86)', app_name),
+            os.path.join(drive_c, 'Program Files'),
+            os.path.join(drive_c, 'Program Files (x86)'),
+            os.path.join(drive_c, 'users', 'Public', 'Desktop'),
+        ]
+
+        # Search for .exe files
+        for search_path in search_paths:
+            if not os.path.exists(search_path):
+                continue
+
+            logger.info(f"Searching in: {search_path}")
+
+            # Walk through directories
+            for root, dirs, files in os.walk(search_path):
+                for file in files:
+                    if file.lower().endswith('.exe') and 'unins' not in file.lower():
+                        # Skip uninstallers and setup files
+                        if any(skip in file.lower() for skip in ['unins', 'setup', 'install', 'update']):
+                            continue
+
+                        full_path = os.path.join(root, file)
+                        logger.info(f"Found potential .exe: {full_path}")
+
+                        # If the exe name matches the app name, prioritize it
+                        if app_name.lower().replace(' ', '') in file.lower().replace(' ', ''):
+                            logger.info(f"Found matching .exe: {full_path}")
+                            return full_path
+
+                        # Otherwise, keep this as a candidate
+                        if not hasattr(self, '_candidate_exe'):
+                            self._candidate_exe = full_path
+
+                # Don't search too deep (max 3 levels)
+                if root.count(os.sep) - search_path.count(os.sep) >= 3:
+                    del dirs[:]
+
+        # Return candidate if found
+        if hasattr(self, '_candidate_exe'):
+            candidate = self._candidate_exe
+            delattr(self, '_candidate_exe')
+            logger.info(f"Using candidate .exe: {candidate}")
+            return candidate
+
+        logger.warning("No installed .exe found")
+        return None
