@@ -1,0 +1,280 @@
+/* WineTranslator Custom Styles */
+
+/* Force dark theme */
+@define-color window_bg_color #1e1e1e;
+@define-color window_fg_color #ffffff;
+@define-color view_bg_color #2d2d2d;
+@define-color view_fg_color #ffffff;
+@define-color headerbar_bg_color #1a1a1a;
+@define-color headerbar_fg_color #ffffff;
+@define-color card_bg_color #353535;
+@define-color card_fg_color #ffffff;
+@define-color popover_bg_color #2d2d2d;
+@define-color dialog_bg_color #2d2d2d;
+
+/* Application cards in Library */
+.app-card {
+    background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
+    border-radius: 16px;
+    border: 1px solid #4a4a4a;
+    padding: 16px;
+    margin: 8px;
+    transition: all 0.3s ease;
+}
+
+.app-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+    border-color: #5e5e5e;
+}
+
+/* Tested apps cards */
+.boxed-list row {
+    background: #2d2d2d;
+    border-radius: 12px;
+    margin: 4px 0;
+    padding: 8px;
+}
+
+.boxed-list row:hover {
+    background: #353535;
+}
+
+/* Suggested action buttons (Install, Launch) */
+button.suggested-action {
+    background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+button.suggested-action:hover {
+    background: linear-gradient(135deg, #42a5f5 0%, #2196f3 100%);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.5);
+}
+
+/* Destructive action buttons (Remove) */
+button.destructive-action {
+    background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+button.destructive-action:hover {
+    background: linear-gradient(135deg, #ef5350 0%, #f44336 100%);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.5);
+}
+
+/* Regular buttons */
+button {
+    border-radius: 8px;
+    padding: 8px 16px;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    background: #404040;
+}
+
+/* Header bar styling */
+headerbar {
+    background: linear-gradient(180deg, #1a1a1a 0%, #161616 100%);
+    border-bottom: 1px solid #0a0a0a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Status page styling */
+statuspage {
+    background: #1e1e1e;
+}
+
+statuspage > box > box > label {
+    color: #b0b0b0;
+}
+
+/* Cards with .card class */
+.card {
+    background: linear-gradient(135deg, #3a3a3a 0%, #2d2d2d 100%);
+    border: 1px solid #4a4a4a;
+    border-radius: 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+    border-color: #5e5e5e;
+}
+
+/* Preferences window styling */
+preferencespage {
+    background: #1e1e1e;
+}
+
+preferencesgroup {
+    background: #2d2d2d;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+/* Switch rows */
+row switch {
+    border-radius: 12px;
+}
+
+row switch:checked {
+    background: #2196f3;
+}
+
+/* Entry fields */
+entry {
+    background: #353535;
+    border: 1px solid #4a4a4a;
+    border-radius: 8px;
+    color: white;
+}
+
+entry:focus {
+    border-color: #2196f3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
+}
+
+/* Dropdown menus */
+dropdown {
+    background: #353535;
+    border-radius: 8px;
+}
+
+dropdown:hover {
+    background: #404040;
+}
+
+/* Labels */
+.dim-label {
+    color: #b0b0b0;
+}
+
+/* Warning boxes */
+.warning {
+    background: rgba(255, 152, 0, 0.15);
+    border-left: 4px solid #ff9800;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+/* Accent color for various elements */
+.accent {
+    color: #2196f3;
+}
+
+/* Scrollbars */
+scrollbar slider {
+    background: #4a4a4a;
+    border-radius: 8px;
+    min-width: 10px;
+    min-height: 10px;
+}
+
+scrollbar slider:hover {
+    background: #5e5e5e;
+}
+
+/* Tab bar */
+tabbar {
+    background: #1a1a1a;
+    border-bottom: 1px solid #0a0a0a;
+}
+
+tabbar tab {
+    border-radius: 0;
+    padding: 8px 16px;
+    transition: all 0.2s ease;
+}
+
+tabbar tab:checked {
+    background: #2d2d2d;
+    border-bottom: 2px solid #2196f3;
+}
+
+tabbar tab:hover {
+    background: #252525;
+}
+
+/* List boxes */
+list {
+    background: transparent;
+    border-radius: 12px;
+}
+
+list row {
+    border-radius: 8px;
+    padding: 8px;
+}
+
+list row:hover {
+    background: #353535;
+}
+
+/* Tooltips */
+tooltip {
+    background: #2d2d2d;
+    border: 1px solid #4a4a4a;
+    border-radius: 8px;
+    color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Progress bars */
+progressbar trough {
+    background: #353535;
+    border-radius: 8px;
+}
+
+progressbar progress {
+    background: linear-gradient(90deg, #2196f3 0%, #1976d2 100%);
+    border-radius: 8px;
+}
+
+/* Message dialogs */
+messagedialog {
+    background: #2d2d2d;
+}
+
+messagedialog box {
+    background: #2d2d2d;
+}
+
+/* Menu buttons */
+menubutton {
+    border-radius: 8px;
+}
+
+menubutton:hover {
+    background: #353535;
+}
+
+/* Clamp styling */
+clamp {
+    background: transparent;
+}
+
+/* Empty state styling */
+.empty-state {
+    color: #b0b0b0;
+    padding: 48px;
+}
+
+/* Application icons in cards */
+.app-icon {
+    border-radius: 12px;
+    padding: 8px;
+    background: linear-gradient(135deg, #424242 0%, #303030 100%);
+}

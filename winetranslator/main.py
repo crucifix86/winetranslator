@@ -9,6 +9,8 @@ from gi.repository import Gtk, Adw, Gio, GLib
 import sys
 import threading
 import logging
+import os
+from pathlib import Path
 
 from .database.db import Database
 from .gui.main_window import MainWindow
@@ -90,6 +92,14 @@ class WineTranslatorApp(Adw.Application):
     def do_startup(self):
         """Application startup."""
         Adw.Application.do_startup(self)
+
+        # Force dark theme
+        style_manager = Adw.StyleManager.get_default()
+        style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        logger.info("Dark theme enabled")
+
+        # Load custom CSS
+        self._load_css()
 
         # Create actions
         about_action = Gio.SimpleAction.new("about", None)
@@ -221,6 +231,32 @@ class WineTranslatorApp(Adw.Application):
         from .gui.preferences_dialog import PreferencesDialog
         prefs = PreferencesDialog(self.get_active_window(), self.db)
         prefs.present()
+
+    def _load_css(self):
+        """Load custom CSS styling."""
+        try:
+            # Get the CSS file path
+            css_path = Path(__file__).parent / "gui" / "style.css"
+
+            if not css_path.exists():
+                logger.warning(f"CSS file not found: {css_path}")
+                return
+
+            # Load CSS
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_path(str(css_path))
+
+            # Apply to default display
+            Gtk.StyleContext.add_provider_for_display(
+                display=Gtk.StyleContext.get_display(Gtk.StyleContext()),
+                provider=css_provider,
+                priority=Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+
+            logger.info(f"Loaded custom CSS from {css_path}")
+
+        except Exception as e:
+            logger.error(f"Error loading CSS: {e}", exc_info=True)
 
 
 def main():

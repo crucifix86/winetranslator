@@ -193,8 +193,9 @@ class MainWindow(Adw.ApplicationWindow):
         """Create an application card widget."""
         # Main card container
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        card.set_size_request(150, 180)
+        card.set_size_request(150, 200)
         card.add_css_class("card")
+        card.add_css_class("app-card")
 
         # Button for clicking
         button = Gtk.Button()
@@ -209,13 +210,18 @@ class MainWindow(Adw.ApplicationWindow):
         button_box.set_margin_end(12)
         button.set_child(button_box)
 
-        # Icon
+        # Icon with styled background
+        icon_box = Gtk.Box()
+        icon_box.set_halign(Gtk.Align.CENTER)
+        icon_box.add_css_class("app-icon")
+
         if app['icon_path'] and os.path.isfile(app['icon_path']):
             icon = Gtk.Image.new_from_file(app['icon_path'])
         else:
             icon = Gtk.Image.new_from_icon_name("application-x-executable-symbolic")
         icon.set_pixel_size(64)
-        button_box.append(icon)
+        icon_box.append(icon)
+        button_box.append(icon_box)
 
         # Application name
         name_label = Gtk.Label(label=app['name'])
