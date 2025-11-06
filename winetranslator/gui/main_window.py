@@ -373,6 +373,7 @@ class MainWindow(Adw.ApplicationWindow):
         progress_dialog.present()
 
         def enable_thread():
+            import subprocess
             from ..core.dependency_manager import DependencyManager
             dep_manager = DependencyManager(self.db)
 
