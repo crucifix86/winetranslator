@@ -84,6 +84,11 @@ class MainWindow(Adw.ApplicationWindow):
         manage_deps_action.connect("activate", self._on_manage_dependencies_action)
         app.add_action(manage_deps_action)
 
+        # Enable controller action (with parameter)
+        enable_controller_action = Gio.SimpleAction.new("enable-controller", GLib.VariantType.new("s"))
+        enable_controller_action.connect("activate", self._on_enable_controller_action)
+        app.add_action(enable_controller_action)
+
     def _on_open_directory_action(self, action, parameter):
         """Handle open directory action from context menu."""
         app_id = int(parameter.get_string())
@@ -278,6 +283,139 @@ class MainWindow(Adw.ApplicationWindow):
             button.set_label("Failed ✗")
             button.set_sensitive(True)
             toast = Adw.Toast.new(f"Failed to install {dep_name}: {message}")
+
+        toast.set_timeout(3)
+        self.toast_overlay.add_toast(toast)
+        return False
+
+    def _on_enable_controller_action(self, action, parameter):
+        """Handle enable controller action from context menu."""
+        app_id = int(parameter.get_string())
+        self._show_enable_controller_dialog(app_id)
+
+    def _detect_xbox_controllers(self):
+        """Detect connected Xbox controllers."""
+        controllers = []
+        try:
+            # Check /dev/input/js* devices
+            import glob
+            js_devices = glob.glob('/dev/input/js*')
+
+            for device in js_devices:
+                try:
+                    # Try to read device name
+                    device_num = device.replace('/dev/input/js', '')
+                    event_device = f'/sys/class/input/js{device_num}/device/name'
+
+                    if os.path.exists(event_device):
+                        with open(event_device, 'r') as f:
+                            name = f.read().strip()
+
+                        # Check if it's an Xbox controller
+                        if any(x in name.lower() for x in ['xbox', 'x-box', 'microsoft']):
+                            controllers.append({
+                                'device': device,
+                                'name': name,
+                                'number': device_num
+                            })
+                except Exception as e:
+                    logger.debug(f"Error reading device {device}: {e}")
+
+        except Exception as e:
+            logger.error(f"Error detecting controllers: {e}")
+
+        return controllers
+
+    def _show_enable_controller_dialog(self, app_id: int):
+        """Show dialog to enable controller support for an app."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        # Detect controllers
+        controllers = self._detect_xbox_controllers()
+
+        # Create dialog
+        dialog = Adw.MessageDialog.new(self)
+        dialog.set_heading(f"Enable Controller Support - {app['name']}")
+
+        if controllers:
+            controller_list = "\n".join([f"• {c['name']}" for c in controllers])
+            dialog.set_body(f"Detected Xbox controllers:\n{controller_list}\n\nThis will install XInput support and enable controller input for this game.")
+        else:
+            dialog.set_body("No Xbox controllers detected.\n\nMake sure your controller is connected. This will install XInput support for controller compatibility.")
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("enable", "Enable Controller")
+        dialog.set_response_appearance("enable", Adw.ResponseAppearance.SUGGESTED)
+
+        dialog.connect("response", self._on_enable_controller_response, app_id)
+        dialog.present()
+
+    def _on_enable_controller_response(self, dialog, response, app_id: int):
+        """Handle enable controller dialog response."""
+        if response != "enable":
+            return
+
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        prefix_id = app['prefix_id']
+        prefix = self.prefix_manager.get_prefix(prefix_id)
+        if not prefix:
+            return
+
+        # Show progress
+        progress_dialog = Adw.MessageDialog.new(self)
+        progress_dialog.set_heading("Enabling Controller Support")
+        progress_dialog.set_body("Installing XInput dependencies...")
+        progress_dialog.present()
+
+        def enable_thread():
+            from ..core.dependency_manager import DependencyManager
+            dep_manager = DependencyManager(self.db)
+
+            # Install xinput dependencies
+            success, message = dep_manager.install_dependency(
+                prefix['path'],
+                'xinput',
+                prefix.get('runner_path')
+            )
+
+            if not success:
+                GLib.idle_add(self._on_controller_enabled, False, message, progress_dialog)
+                return
+
+            # Set environment variable for SDL controller support
+            self.db.set_env_var(app_id, 'SDL_GAMECONTROLLERCONFIG', 'auto')
+            self.db.set_env_var(app_id, 'SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS', '1')
+
+            GLib.idle_add(self._on_controller_enabled, True, "Controller support enabled", progress_dialog)
+
+        thread = threading.Thread(target=enable_thread, daemon=True)
+        thread.start()
+
+    def _on_controller_enabled(self, success: bool, message: str, progress_dialog):
+        """Handle controller enablement completion."""
+        progress_dialog.close()
+
+        if success:
+            result_dialog = Adw.MessageDialog.new(self)
+            result_dialog.set_heading("Controller Support Enabled")
+            result_dialog.set_body("XInput support has been installed and controller environment variables have been set.\n\nYour Xbox controller should now work in this game!")
+            result_dialog.add_response("ok", "OK")
+            result_dialog.present()
+
+            toast = Adw.Toast.new("Controller support enabled successfully")
+        else:
+            result_dialog = Adw.MessageDialog.new(self)
+            result_dialog.set_heading("Failed to Enable Controller")
+            result_dialog.set_body(f"Error: {message}")
+            result_dialog.add_response("ok", "OK")
+            result_dialog.present()
+
+            toast = Adw.Toast.new(f"Failed: {message}")
 
         toast.set_timeout(3)
         self.toast_overlay.add_toast(toast)
@@ -541,6 +679,7 @@ class MainWindow(Adw.ApplicationWindow):
         menu.append("Edit Launch Arguments", f"app.edit-arguments::{app_id}")
         menu.append("Change Executable", f"app.change-executable::{app_id}")
         menu.append("Manage Dependencies", f"app.manage-dependencies::{app_id}")
+        menu.append("Enable Controller Support", f"app.enable-controller::{app_id}")
 
         # Create popover menu
         popover = Gtk.PopoverMenu()
