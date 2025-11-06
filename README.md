@@ -146,12 +146,12 @@ Everything is designed to look native to modern Linux desktops!
 
 ### Desktop Shortcuts
 
-Create native Linux shortcuts for your Windows apps:
+Create desktop shortcuts for your Windows apps:
 
 1. Click on any installed app in the Library tab
 2. Click **"Create Desktop Shortcut"**
-3. The app will appear in your system's application menu
-4. Launch it like any native Linux application!
+3. A shortcut icon will appear on your Desktop
+4. Double-click the icon to launch your app!
 
 Shortcuts use the `winetranslator-launch` command and work perfectly with your desktop environment.
 
