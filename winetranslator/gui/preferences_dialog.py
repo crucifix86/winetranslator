@@ -78,6 +78,29 @@ class PreferencesDialog(Adw.PreferencesWindow):
         cache_info.set_margin_top(6)
         cache_group.add(cache_info)
 
+        # Wine memory settings group
+        memory_group = Adw.PreferencesGroup()
+        memory_group.set_title("Wine Memory Settings")
+        memory_group.set_description("Configure memory limits for Wine applications")
+        general_page.add(memory_group)
+
+        # Large address aware switch
+        self.large_address_row = Adw.SwitchRow()
+        self.large_address_row.set_title("Enable Large Address Aware")
+        self.large_address_row.set_subtitle("Allow 32-bit apps to use up to 4GB of memory (fixes installer crashes)")
+        self.large_address_row.connect("notify::active", self._on_large_address_toggle)
+        memory_group.add(self.large_address_row)
+
+        # Memory info
+        memory_info = Gtk.Label()
+        memory_info.set_text("Enabling Large Address Aware fixes memory errors in large game installers like FitGirl repacks. This sets WINE_LARGE_ADDRESS_AWARE=1 environment variable.")
+        memory_info.set_wrap(True)
+        memory_info.set_halign(Gtk.Align.START)
+        memory_info.add_css_class("dim-label")
+        memory_info.set_margin_start(12)
+        memory_info.set_margin_top(6)
+        memory_group.add(memory_info)
+
     def _load_settings(self):
         """Load settings from database."""
         # Load cache enabled setting
@@ -93,6 +116,10 @@ class PreferencesDialog(Adw.PreferencesWindow):
 
         self.cache_path_label.set_text(cache_path)
         self._update_cache_ui()
+
+        # Load large address aware setting (default to enabled)
+        large_address = self.db.get_setting('wine_large_address', '1') == '1'
+        self.large_address_row.set_active(large_address)
 
     def _update_cache_ui(self):
         """Update cache UI based on enabled state."""
@@ -170,3 +197,9 @@ class PreferencesDialog(Adw.PreferencesWindow):
                 logger.error(f"GLib error selecting cache location: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Error selecting cache location: {e}", exc_info=True)
+
+    def _on_large_address_toggle(self, switch, param):
+        """Handle large address aware toggle."""
+        enabled = switch.get_active()
+        logger.info(f"Wine large address aware toggled: {enabled}")
+        self.db.set_setting('wine_large_address', '1' if enabled else '0')

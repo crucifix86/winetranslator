@@ -386,6 +386,7 @@ class MainWindow(Adw.ApplicationWindow):
         dialog.set_body(f"Prefix: {app['prefix_name']}\nRunner: {app['runner_name']}")
 
         dialog.add_response("cancel", "Cancel")
+        dialog.add_response("prefix", "Open Wine C: Drive")
         dialog.add_response("shortcut", "Create Desktop Shortcut")
         dialog.add_response("launch", "Launch")
         dialog.add_response("remove", "Remove")
@@ -403,6 +404,13 @@ class MainWindow(Adw.ApplicationWindow):
             self._remove_application(app_id)
         elif response == "shortcut":
             self._create_desktop_shortcut(app_id)
+        elif response == "prefix":
+            # Open Wine C: drive for this app's prefix
+            app = self.app_launcher.get_application(app_id)
+            if app and app.get('prefix_path'):
+                drive_c = os.path.join(app['prefix_path'], 'drive_c')
+                if os.path.exists(drive_c):
+                    self._open_directory(drive_c)
 
     def _launch_application(self, app_id: int):
         """Launch an application."""

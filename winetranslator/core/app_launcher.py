@@ -59,6 +59,13 @@ class AppLauncher:
 
         # Get environment variables
         env_vars = self.db.get_env_vars(app_id)
+        if env_vars is None:
+            env_vars = {}
+
+        # Check if large address aware is enabled
+        large_address = self.db.get_setting('wine_large_address', '1') == '1'
+        if large_address:
+            env_vars['WINE_LARGE_ADDRESS_AWARE'] = '1'
 
         try:
             # Launch the application
