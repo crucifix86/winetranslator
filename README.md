@@ -7,7 +7,13 @@ A simple, easy-to-use Wine GUI for running Windows applications on Linux with au
 - **Beautiful dark theme** - Modern gradient UI with smooth animations and hover effects
 - **Easy-to-use GTK4 interface** - Native Linux design using Libadwaita
 - **Tested Apps Library** - Curated list of Windows apps known to work perfectly with Wine
-- **Desktop shortcuts** - Create native Linux shortcuts that launch apps directly
+- **Desktop shortcuts** - Create shortcuts on your Desktop for quick access
+- **Context menu** - Right-click apps for quick actions (open directory, edit arguments, etc.)
+- **Launch arguments** - Add command-line arguments per-app (like -console, -windowed, -fullscreen)
+- **Wine C: drive access** - Quick button to open the Wine prefix drive_c folder
+- **Audio support** - Automatic audio configuration (PulseAudio/PipeWire/ALSA detection)
+- **Memory management** - Large Address Aware setting for big game installers (FitGirl repacks)
+- **Smart removal** - Choose to keep files or delete them when removing apps
 - **Isolated Wine prefixes** - Each application gets its own clean environment
 - **Multiple Wine versions** - Support for Wine, Wine-Staging, Proton, and custom builds
 - **Automatic dependency detection** - Detects Unity, Unreal, .NET, XNA games and apps
@@ -155,13 +161,76 @@ Create desktop shortcuts for your Windows apps:
 
 Shortcuts use the `winetranslator-launch` command and work perfectly with your desktop environment.
 
-### Right-Click to Open Directories
+### Context Menu (Right-Click)
 
-**Right-click any app card** in the Library tab to instantly open its installation directory in your file manager. Perfect for:
+**Right-click any app card** in the Library tab to open a context menu with quick actions:
+
+**Available actions:**
+- **Open Install Directory** - Opens the app's installation folder in your file manager
+- **Edit Launch Arguments** - Add command-line arguments (like `-console`, `-windowed`, `-fullscreen`)
+
+Perfect for:
 - Modifying configuration files
 - Adding mods or DLCs
-- Inspecting installation
+- Setting game launch options
 - Quick file access
+
+### Launch Arguments
+
+Add command-line arguments to your apps for advanced configuration:
+
+1. Right-click any app in Library
+2. Select **"Edit Launch Arguments"**
+3. Enter arguments like: `-console -windowed -fullscreen`
+4. Click **Save**
+5. Arguments are automatically applied when launching
+
+Common examples:
+- `-console` - Enable developer console
+- `-windowed` - Run in windowed mode
+- `-fullscreen` - Force fullscreen
+- `-skipintro` - Skip intro videos
+
+### Wine C: Drive Access
+
+Quick access to Wine prefix files:
+
+1. Click on any app in Library
+2. Click **"Open Wine C: Drive"**
+3. Browse the Windows C: drive (drive_c folder)
+
+Perfect for finding game files, save locations, or manually installing mods.
+
+### Smart Removal
+
+When removing apps from your library, WineTranslator gives you control over what happens to the files:
+
+1. Click **Remove** on any app
+2. Choose from three options:
+   - **Cancel** - Don't remove anything
+   - **Remove from Library Only** - Keep all files, just remove from WineTranslator
+   - **Remove and Delete Files** - Permanently delete the app's directory
+
+**Use cases:**
+- **Installers**: Remove the installer from library but keep files to run actual setup later
+- **Portable apps**: Keep files when testing different Wine versions
+- **Cleanup**: Delete everything when uninstalling completely
+
+The delete option includes double confirmation to prevent accidents.
+
+### Wine Memory Settings
+
+Fix memory-related crashes in large game installers:
+
+**Large Address Aware** (enabled by default):
+- Allows 32-bit Wine apps to use up to 4GB of memory
+- Fixes crashes in compressed game installers (FitGirl repacks, etc.)
+- Sets `WINE_LARGE_ADDRESS_AWARE=1` environment variable
+
+**Why this matters:**
+Wine has virtual memory limits separate from your physical RAM. Even with 64GB of system RAM, Wine's default 32-bit process limit is much lower. Large installers that decompress huge archives can hit this limit and crash with "out of memory" errors.
+
+Enable/disable in: **Menu → Preferences → Wine Memory Settings**
 
 ### Container Apps (Manual Installation)
 
@@ -210,6 +279,23 @@ Benefits:
 - Reduced bandwidth usage
 - Can backup/share cache folder
 - Eventually host cache for easy distribution
+
+### Wine Memory Settings
+
+Configure Wine's memory limits for applications:
+
+**Large Address Aware** (enabled by default):
+- Toggle ON to allow 32-bit apps to use up to 4GB of memory
+- Fixes "out of memory" crashes in large game installers (FitGirl repacks, DODI repacks, etc.)
+- Automatically sets `WINE_LARGE_ADDRESS_AWARE=1` environment variable for all apps
+
+This setting is especially important for:
+- Compressed game installers that need memory for decompression
+- Large setup.exe files (over 10GB)
+- Games with high-resolution texture packs
+- Modded applications with memory-intensive operations
+
+**Note**: This is a Wine virtual memory limit, not your physical RAM. Even with plenty of system RAM, Wine's 32-bit processes have default memory limits that can cause crashes.
 
 ## Updating WineTranslator
 
