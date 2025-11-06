@@ -29,7 +29,9 @@ class Database:
             db_path = os.path.join(db_dir, 'winetranslator.db')
 
         self.db_path = db_path
-        self.conn = sqlite3.connect(db_path)
+        # Allow database access from multiple threads
+        # check_same_thread=False is safe here as we're using SQLite's built-in thread safety
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
