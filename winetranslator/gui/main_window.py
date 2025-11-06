@@ -434,17 +434,90 @@ class MainWindow(Adw.ApplicationWindow):
         self.toast_overlay.add_toast(toast)
 
     def _remove_application(self, app_id: int):
-        """Remove an application."""
+        """Remove an application - show dialog to ask about deleting files."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        # Create confirmation dialog
+        dialog = Adw.MessageDialog.new(self)
+        dialog.set_heading(f"Remove {app['name']}?")
+        dialog.set_body("Do you want to delete the application files or just remove it from the library?")
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("remove-only", "Remove from Library Only")
+        dialog.add_response("delete-files", "Remove and Delete Files")
+
+        dialog.set_response_appearance("remove-only", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_response_appearance("delete-files", Adw.ResponseAppearance.DESTRUCTIVE)
+
+        dialog.connect("response", self._on_remove_dialog_response, app_id)
+        dialog.present()
+
+    def _on_remove_dialog_response(self, dialog, response, app_id: int):
+        """Handle remove confirmation dialog response."""
+        if response == "cancel":
+            return
+
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        delete_files = (response == "delete-files")
+
+        # Remove from database
         success, message = self.app_launcher.remove_application(app_id)
 
         if success:
+            # If user wants to delete files, delete the executable and its directory
+            if delete_files:
+                try:
+                    exe_path = app.get('executable_path', '')
+                    if exe_path and os.path.exists(exe_path):
+                        exe_dir = os.path.dirname(exe_path)
+
+                        # Ask for final confirmation before deleting
+                        confirm_dialog = Adw.MessageDialog.new(self)
+                        confirm_dialog.set_heading("Delete Files?")
+                        confirm_dialog.set_body(f"This will permanently delete:\n{exe_dir}\n\nThis cannot be undone!")
+                        confirm_dialog.add_response("cancel", "Cancel")
+                        confirm_dialog.add_response("delete", "Delete Files")
+                        confirm_dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+                        confirm_dialog.connect("response", self._on_delete_files_response, exe_dir, app['name'])
+                        confirm_dialog.present()
+                    else:
+                        logger.warning(f"Executable path not found for deletion: {exe_path}")
+                except Exception as e:
+                    logger.error(f"Error preparing file deletion: {e}", exc_info=True)
+                    toast = Adw.Toast.new(f"Error: {str(e)}")
+                    toast.set_timeout(3)
+                    self.toast_overlay.add_toast(toast)
+
             self._refresh_applications()
-            toast = Adw.Toast.new(message)
+            toast = Adw.Toast.new(f"Removed {app['name']} from library")
         else:
             toast = Adw.Toast.new(f"Error: {message}")
 
         toast.set_timeout(2)
         self.toast_overlay.add_toast(toast)
+
+    def _on_delete_files_response(self, dialog, response, directory: str, app_name: str):
+        """Handle final delete files confirmation."""
+        if response == "delete":
+            try:
+                import shutil
+                if os.path.exists(directory):
+                    shutil.rmtree(directory)
+                    logger.info(f"Deleted directory: {directory}")
+                    toast = Adw.Toast.new(f"Deleted files for {app_name}")
+                else:
+                    toast = Adw.Toast.new(f"Directory not found: {directory}")
+            except Exception as e:
+                logger.error(f"Error deleting directory: {e}", exc_info=True)
+                toast = Adw.Toast.new(f"Error deleting files: {str(e)}")
+
+            toast.set_timeout(3)
+            self.toast_overlay.add_toast(toast)
 
     def _on_add_app_clicked(self, button):
         """Handle add application button click."""
