@@ -94,6 +94,9 @@ class TestedAppsView(Gtk.Box):
 
     def _load_apps(self, category='All'):
         """Load tested apps into the list."""
+        logger.info(f"_load_apps called with category={category}")
+        logger.info(f"Total tested apps available: {len(self.tested_apps)}")
+
         # Clear existing
         while True:
             row = self.apps_list.get_row_at_index(0)
@@ -106,9 +109,12 @@ class TestedAppsView(Gtk.Box):
         if category != 'All':
             apps = [app for app in self.tested_apps if app.get('category') == category]
 
+        logger.info(f"Apps to display after filtering: {len(apps)}")
+
         # Add app cards
         if not apps:
             # Show empty state
+            logger.warning("No apps to display, showing empty state")
             empty_label = Gtk.Label(label="No tested apps available.\nClick refresh to reload.")
             empty_label.set_margin_top(48)
             empty_label.set_margin_bottom(48)
@@ -119,9 +125,15 @@ class TestedAppsView(Gtk.Box):
             row.set_child(empty_label)
             self.apps_list.append(row)
         else:
+            logger.info(f"Creating cards for {len(apps)} apps")
             for app in apps:
-                card = self._create_app_card(app)
-                self.apps_list.append(card)
+                logger.info(f"Creating card for: {app.get('name', 'Unknown')}")
+                try:
+                    card = self._create_app_card(app)
+                    self.apps_list.append(card)
+                    logger.info(f"Card added successfully for {app.get('name')}")
+                except Exception as e:
+                    logger.error(f"Error creating card for {app.get('name')}: {e}", exc_info=True)
 
     def _create_app_card(self, app):
         """Create a card for a tested app."""
