@@ -5,11 +5,13 @@ Main entry point for WineTranslator.
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gio
+from gi.repository import Gtk, Adw, Gio, GLib
 import sys
+import threading
 
 from .database.db import Database
 from .gui.main_window import MainWindow
+from .core.updater import Updater
 
 
 class WineTranslatorApp(Adw.Application):
@@ -46,6 +48,10 @@ class WineTranslatorApp(Adw.Application):
         preferences_action.connect("activate", self.on_preferences)
         self.add_action(preferences_action)
 
+        update_action = Gio.SimpleAction.new("update", None)
+        update_action.connect("activate", self.on_update)
+        self.add_action(update_action)
+
         quit_action = Gio.SimpleAction.new("quit", None)
         quit_action.connect("activate", lambda *_: self.quit())
         self.add_action(quit_action)
@@ -59,12 +65,104 @@ class WineTranslatorApp(Adw.Application):
             application_icon="application-x-executable-symbolic",
             developer_name="WineTranslator Team",
             version="0.1.0",
-            website="https://github.com/winetranslator/winetranslator",
-            issue_url="https://github.com/winetranslator/winetranslator/issues",
+            website="https://github.com/crucifix86/winetranslator",
+            issue_url="https://github.com/crucifix86/winetranslator/issues",
             license_type=Gtk.License.GPL_3_0,
             comments="A simple, easy-to-use Wine GUI for running Windows applications on Linux"
         )
         about.present()
+
+    def on_update(self, action, param):
+        """Show update dialog."""
+        updater = Updater()
+
+        if not updater.is_git_repo():
+            dialog = Adw.MessageDialog.new(self.get_active_window())
+            dialog.set_heading("Updates Not Available")
+            dialog.set_body("WineTranslator is not installed from git. To enable updates, reinstall from the GitHub repository.")
+            dialog.add_response("ok", "OK")
+            dialog.present()
+            return
+
+        # Show checking dialog
+        check_dialog = Adw.MessageDialog.new(self.get_active_window())
+        check_dialog.set_heading("Checking for Updates")
+        check_dialog.set_body("Checking GitHub for updates...")
+        check_dialog.present()
+
+        # Check for updates in background
+        def check_thread():
+            has_updates, message, remote_commit = updater.check_for_updates()
+            GLib.idle_add(self._on_update_check_complete, has_updates, message, check_dialog, updater)
+
+        thread = threading.Thread(target=check_thread, daemon=True)
+        thread.start()
+
+    def _on_update_check_complete(self, has_updates, message, check_dialog, updater):
+        """Handle update check completion."""
+        check_dialog.close()
+
+        if has_updates:
+            # Show update available dialog
+            dialog = Adw.MessageDialog.new(self.get_active_window())
+            dialog.set_heading("Update Available")
+            dialog.set_body(f"{message}\n\nWould you like to update now?")
+            dialog.add_response("cancel", "Not Now")
+            dialog.add_response("update", "Update")
+            dialog.set_response_appearance("update", Adw.ResponseAppearance.SUGGESTED)
+            dialog.connect("response", self._on_update_response, updater)
+            dialog.present()
+        else:
+            # Show up to date dialog
+            dialog = Adw.MessageDialog.new(self.get_active_window())
+            dialog.set_heading("No Updates Available")
+            dialog.set_body(message)
+            dialog.add_response("ok", "OK")
+            dialog.present()
+
+    def _on_update_response(self, dialog, response, updater):
+        """Handle update dialog response."""
+        if response == "update":
+            # Show updating dialog
+            progress_dialog = Adw.MessageDialog.new(self.get_active_window())
+            progress_dialog.set_heading("Updating")
+            progress_dialog.set_body("Downloading and installing update...")
+            progress_dialog.present()
+
+            # Update in background
+            def update_thread():
+                success, message = updater.update()
+                GLib.idle_add(self._on_update_complete, success, message, progress_dialog)
+
+            thread = threading.Thread(target=update_thread, daemon=True)
+            thread.start()
+
+    def _on_update_complete(self, success, message, progress_dialog):
+        """Handle update completion."""
+        progress_dialog.close()
+
+        dialog = Adw.MessageDialog.new(self.get_active_window())
+        if success:
+            dialog.set_heading("Update Successful")
+            dialog.set_body(f"{message}\n\nPlease restart WineTranslator to use the new version.")
+            dialog.add_response("ok", "OK")
+            dialog.add_response("restart", "Restart Now")
+            dialog.set_response_appearance("restart", Adw.ResponseAppearance.SUGGESTED)
+            dialog.connect("response", self._on_restart_response)
+        else:
+            dialog.set_heading("Update Failed")
+            dialog.set_body(message)
+            dialog.add_response("ok", "OK")
+
+        dialog.present()
+
+    def _on_restart_response(self, dialog, response):
+        """Handle restart response."""
+        if response == "restart":
+            # Restart the application
+            import os
+            import sys
+            os.execv(sys.executable, ['python3', '-m', 'winetranslator'])
 
     def on_preferences(self, action, param):
         """Show preferences dialog."""

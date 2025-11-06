@@ -17,6 +17,7 @@ from ..core.runner_manager import RunnerManager
 from ..core.prefix_manager import PrefixManager
 from ..core.app_launcher import AppLauncher
 from ..core.dependency_manager import DependencyManager
+from ..core.updater import Updater
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -38,6 +39,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.prefix_manager = PrefixManager(db)
         self.app_launcher = AppLauncher(db)
         self.dep_manager = DependencyManager()
+        self.updater = Updater()
 
         # Window properties
         self.set_title("WineTranslator")
@@ -69,6 +71,7 @@ class MainWindow(Adw.ApplicationWindow):
         menu_button = Gtk.MenuButton()
         menu_button.set_icon_name("open-menu-symbolic")
         menu = Gio.Menu()
+        menu.append("Check for Updates", "app.update")
         menu.append("Preferences", "app.preferences")
         menu.append("About", "app.about")
         menu_button.set_menu_model(menu)

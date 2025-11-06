@@ -94,6 +94,38 @@ Or run directly without installation:
    - Click the application card
    - Click **Launch**
 
+## Updating WineTranslator
+
+WineTranslator includes built-in update functionality when installed from git!
+
+### GUI Update (Recommended)
+
+1. Open WineTranslator
+2. Click the menu button (three lines) in the top-right
+3. Select **"Check for Updates"**
+4. If updates are available, click **"Update"**
+5. Restart WineTranslator when prompted
+
+### Command Line Update
+
+```bash
+cd /media/doug/stuff/winetranslator
+./update.sh
+```
+
+Or manually:
+```bash
+git pull origin main
+pip3 install --user -e .
+```
+
+The update feature:
+- ✅ Checks GitHub for new commits
+- ✅ Shows what will be updated
+- ✅ Downloads and installs updates
+- ✅ Offers to restart automatically
+- ✅ No need to reinstall from scratch!
+
 ## Architecture
 
 WineTranslator is built with simplicity and maintainability in mind:
