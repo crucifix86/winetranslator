@@ -132,6 +132,7 @@ class Database:
         # Set default settings
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('cache_dependencies', '0')")
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('cache_path', '')")
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('prefix_storage_location', '')")
 
         self.conn.commit()
 

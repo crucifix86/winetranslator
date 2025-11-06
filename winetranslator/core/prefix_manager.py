@@ -22,14 +22,20 @@ class PrefixManager:
         Args:
             db: Database instance.
             data_dir: Base directory for storing prefixes.
-                     If None, uses XDG_DATA_HOME/winetranslator/prefixes
+                     If None, uses custom storage location from settings or XDG_DATA_HOME/winetranslator/prefixes
         """
         self.db = db
 
         if data_dir is None:
-            xdg_data = os.environ.get('XDG_DATA_HOME',
-                                     os.path.expanduser('~/.local/share'))
-            data_dir = os.path.join(xdg_data, 'winetranslator', 'prefixes')
+            # Check for custom storage location in settings
+            custom_location = db.get_setting('prefix_storage_location', '')
+            if custom_location:
+                data_dir = custom_location
+            else:
+                # Use default location
+                xdg_data = os.environ.get('XDG_DATA_HOME',
+                                         os.path.expanduser('~/.local/share'))
+                data_dir = os.path.join(xdg_data, 'winetranslator', 'prefixes')
 
         self.prefixes_dir = data_dir
         os.makedirs(self.prefixes_dir, exist_ok=True)

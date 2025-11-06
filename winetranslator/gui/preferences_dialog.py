@@ -101,6 +101,40 @@ class PreferencesDialog(Adw.PreferencesWindow):
         memory_info.set_margin_top(6)
         memory_group.add(memory_info)
 
+        # Storage settings group
+        storage_group = Adw.PreferencesGroup()
+        storage_group.set_title("Storage Location")
+        storage_group.set_description("Choose where to store Wine prefixes and application files")
+        general_page.add(storage_group)
+
+        # Storage location row
+        self.storage_location_row = Adw.ActionRow()
+        self.storage_location_row.set_title("Prefix Storage Location")
+        self.storage_location_button = Gtk.Button(label="Choose Folder...")
+        self.storage_location_button.set_valign(Gtk.Align.CENTER)
+        self.storage_location_button.connect("clicked", self._on_choose_storage_location)
+        self.storage_location_row.add_suffix(self.storage_location_button)
+        storage_group.add(self.storage_location_row)
+
+        # Storage path label
+        self.storage_path_label = Gtk.Label()
+        self.storage_path_label.set_halign(Gtk.Align.START)
+        self.storage_path_label.set_wrap(True)
+        self.storage_path_label.add_css_class("dim-label")
+        self.storage_path_label.add_css_class("caption")
+        self.storage_path_label.set_margin_start(12)
+        storage_group.add(self.storage_path_label)
+
+        # Storage info
+        storage_info = Gtk.Label()
+        storage_info.set_text("All new Wine prefixes will be stored in this location. Useful for storing large games on a secondary drive with more space.")
+        storage_info.set_wrap(True)
+        storage_info.set_halign(Gtk.Align.START)
+        storage_info.add_css_class("dim-label")
+        storage_info.set_margin_start(12)
+        storage_info.set_margin_top(6)
+        storage_group.add(storage_info)
+
     def _load_settings(self):
         """Load settings from database."""
         # Load cache enabled setting
@@ -120,6 +154,16 @@ class PreferencesDialog(Adw.PreferencesWindow):
         # Load large address aware setting (default to enabled)
         large_address = self.db.get_setting('wine_large_address', '1') == '1'
         self.large_address_row.set_active(large_address)
+
+        # Load storage location
+        storage_location = self.db.get_setting('prefix_storage_location', '')
+        if not storage_location:
+            # Show default location
+            data_home = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
+            storage_location = os.path.join(data_home, 'winetranslator', 'prefixes')
+            self.storage_path_label.set_text(f"{storage_location} (default)")
+        else:
+            self.storage_path_label.set_text(storage_location)
 
     def _update_cache_ui(self):
         """Update cache UI based on enabled state."""
@@ -203,3 +247,63 @@ class PreferencesDialog(Adw.PreferencesWindow):
         enabled = switch.get_active()
         logger.info(f"Wine large address aware toggled: {enabled}")
         self.db.set_setting('wine_large_address', '1' if enabled else '0')
+
+    def _on_choose_storage_location(self, button):
+        """Handle choose storage location button click."""
+        logger.info("Choose storage location button clicked")
+
+        dialog = Gtk.FileDialog()
+        dialog.set_title("Select Prefix Storage Location")
+
+        # Set initial folder
+        current_path = self.db.get_setting('prefix_storage_location', '')
+        if not current_path:
+            data_home = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
+            current_path = os.path.join(data_home, 'winetranslator', 'prefixes')
+
+        logger.info(f"Current storage path: {current_path}")
+
+        if current_path and os.path.exists(current_path):
+            initial_folder = Gio.File.new_for_path(current_path)
+            dialog.set_initial_folder(initial_folder)
+            logger.info(f"Set initial folder: {current_path}")
+
+        logger.info("Opening folder selection dialog")
+        dialog.select_folder(self, None, self._on_storage_location_selected)
+
+    def _on_storage_location_selected(self, dialog, result):
+        """Handle storage location selection."""
+        try:
+            logger.info("Storage folder selection callback triggered")
+            folder = dialog.select_folder_finish(result)
+            logger.info(f"Folder selected: {folder}")
+
+            if folder:
+                storage_path = folder.get_path()
+                logger.info(f"Storage location selected: {storage_path}")
+
+                # Create directory if it doesn't exist
+                os.makedirs(storage_path, exist_ok=True)
+
+                # Save to database
+                self.db.set_setting('prefix_storage_location', storage_path)
+                self.storage_path_label.set_text(storage_path)
+                logger.info(f"Storage path saved to database: {storage_path}")
+
+                # Show info dialog about restart
+                info_dialog = Adw.MessageDialog.new(self)
+                info_dialog.set_heading("Storage Location Changed")
+                info_dialog.set_body("The new storage location will be used for all new Wine prefixes. Existing prefixes remain in their current location.")
+                info_dialog.add_response("ok", "OK")
+                info_dialog.present()
+            else:
+                logger.warning("No folder selected (folder is None)")
+
+        except GLib.Error as e:
+            # GTK dismissal is not an error
+            if e.code == 2:  # Dismissed
+                logger.info("Storage folder selection dismissed by user")
+            else:
+                logger.error(f"GLib error selecting storage location: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Error selecting storage location: {e}", exc_info=True)
