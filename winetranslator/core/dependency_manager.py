@@ -76,21 +76,90 @@ class DependencyManager:
         """Check if winetricks is available."""
         return self.winetricks_path is not None
 
-    def install_dependency(self, prefix_path: str, dependency: str,
-                          wine_path: str = None) -> Tuple[bool, str]:
+    def install_vcredist_x64(self, prefix_path: str, wine_path: str = None) -> Tuple[bool, str]:
         """
-        Install a dependency using winetricks.
+        Install 64-bit Visual C++ Redistributable by downloading and running the official installer.
 
         Args:
             prefix_path: Path to the Wine prefix.
-            dependency: Name of the dependency to install.
             wine_path: Optional path to Wine executable.
 
         Returns:
             Tuple of (success, message)
         """
         import logging
+        import tempfile
+        import urllib.request
         logger = logging.getLogger(__name__)
+
+        # URL for VC++ 2015-2022 Redistributable (x64)
+        vcredist_url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+
+        try:
+            # Download to temp directory
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.exe') as tmp_file:
+                tmp_path = tmp_file.name
+                logger.info(f"Downloading VC++ x64 redistributable from {vcredist_url}")
+                urllib.request.urlretrieve(vcredist_url, tmp_path)
+                logger.info(f"Downloaded to {tmp_path}")
+
+            # Install using Wine
+            env = os.environ.copy()
+            env['WINEPREFIX'] = prefix_path
+            if wine_path:
+                env['WINE'] = wine_path
+
+            wine_cmd = wine_path if wine_path else 'wine'
+            logger.info(f"Installing VC++ x64 redistributable in prefix {prefix_path}")
+
+            # Run installer with /quiet /norestart flags
+            result = subprocess.run(
+                [wine_cmd, tmp_path, '/install', '/quiet', '/norestart'],
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
+            )
+
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+
+            if result.returncode == 0 or result.returncode == 3010:  # 3010 = success but reboot required
+                logger.info("Successfully installed VC++ x64 redistributable")
+                return True, "Successfully installed VC++ x64 redistributable"
+            else:
+                error = result.stderr or result.stdout
+                logger.error(f"Failed to install VC++ x64: {error}")
+                return False, f"Failed to install VC++ x64: {error}"
+
+        except Exception as e:
+            logger.error(f"Error installing VC++ x64: {str(e)}", exc_info=True)
+            return False, f"Error installing VC++ x64: {str(e)}"
+
+    def install_dependency(self, prefix_path: str, dependency: str,
+                          wine_path: str = None, arch: str = None) -> Tuple[bool, str]:
+        """
+        Install a dependency using winetricks or direct installer for 64-bit packages.
+
+        Args:
+            prefix_path: Path to the Wine prefix.
+            dependency: Name of the dependency to install.
+            wine_path: Optional path to Wine executable.
+            arch: Optional architecture hint (not currently used).
+
+        Returns:
+            Tuple of (success, message)
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Handle special 64-bit VC++ redistributable
+        if dependency == 'vcredist_x64':
+            logger.info("Installing 64-bit VC++ redistributable using direct installer")
+            return self.install_vcredist_x64(prefix_path, wine_path)
 
         if not self.is_winetricks_available():
             logger.error("winetricks is not installed")
@@ -165,6 +234,50 @@ class DependencyManager:
 
         return results
 
+    def _detect_exe_architecture(self, exe_path: str) -> str:
+        """
+        Detect whether an executable is 32-bit or 64-bit.
+
+        Args:
+            exe_path: Path to the .exe file.
+
+        Returns:
+            'x64' for 64-bit, 'x86' for 32-bit, or 'unknown'
+        """
+        try:
+            with open(exe_path, 'rb') as f:
+                # Read DOS header
+                dos_header = f.read(64)
+                if dos_header[:2] != b'MZ':
+                    return 'unknown'
+
+                # Get PE header offset (at offset 0x3C in DOS header)
+                pe_offset = int.from_bytes(dos_header[0x3C:0x3C+4], byteorder='little')
+
+                # Read PE header
+                f.seek(pe_offset)
+                pe_sig = f.read(4)
+                if pe_sig != b'PE\x00\x00':
+                    return 'unknown'
+
+                # Read machine type (2 bytes after PE signature)
+                machine = int.from_bytes(f.read(2), byteorder='little')
+
+                # 0x014c = IMAGE_FILE_MACHINE_I386 (32-bit)
+                # 0x8664 = IMAGE_FILE_MACHINE_AMD64 (64-bit)
+                if machine == 0x8664:
+                    return 'x64'
+                elif machine == 0x014c:
+                    return 'x86'
+                else:
+                    return 'unknown'
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to detect architecture for {exe_path}: {e}")
+            return 'unknown'
+
     def detect_required_dependencies(self, exe_path: str) -> Set[str]:
         """
         Detect which dependencies an executable might need.
@@ -173,6 +286,7 @@ class DependencyManager:
         - File name patterns (Unity, Unreal, etc.)
         - Directory structure
         - Associated files
+        - Executable architecture (32-bit vs 64-bit)
 
         Args:
             exe_path: Path to the .exe file.
@@ -183,6 +297,12 @@ class DependencyManager:
         required = set()
         exe_dir = os.path.dirname(exe_path)
         exe_name = os.path.basename(exe_path).lower()
+
+        # Detect architecture
+        arch = self._detect_exe_architecture(exe_path)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Detected architecture for {exe_name}: {arch}")
 
         # Check for Unity games
         if 'unity' in exe_name or self._has_unity_files(exe_dir):
@@ -215,8 +335,15 @@ class DependencyManager:
         is_enhanced_edition = any(marker in exe_name for marker in ['se.exe', 'ae.exe', 'special', 'anniversary'])
 
         if is_game or is_enhanced_edition:
-            # Modern games need VC++ runtimes and DirectX
-            required.update(['vcrun2019', 'vcrun2015', 'd3dx9', 'dxvk'])
+            # For 64-bit games, use direct installer instead of winetricks
+            if arch == 'x64':
+                required.add('vcredist_x64')  # Special marker for 64-bit VC++ installer
+            else:
+                # 32-bit games use winetricks
+                required.update(['vcrun2019', 'vcrun2015'])
+
+            # Common dependencies for all games
+            required.update(['d3dx9', 'dxvk'])
             # Games typically need audio
             required.update(['sound', 'dsound'])
             # Add fonts for better text rendering
