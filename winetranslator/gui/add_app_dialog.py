@@ -326,15 +326,20 @@ class AddAppDialog(Adw.Window):
 
     def _on_add_clicked(self, button):
         """Handle add application button click."""
+        logger.info("Add Application button clicked in dialog")
+
         name = self.name_entry.get_text().strip()
         if not name or not self.selected_exe:
+            logger.warning(f"Validation failed: name='{name}', exe='{self.selected_exe}'")
             return
 
         selected_idx = self.prefix_combo.get_selected()
         if selected_idx == Gtk.INVALID_LIST_POSITION:
+            logger.warning("No prefix selected")
             return
 
         prefix_id = self.prefix_ids[selected_idx]
+        logger.info(f"Adding app '{name}' with exe '{self.selected_exe}' to prefix {prefix_id}")
 
         # Show progress dialog
         self.add_button.set_sensitive(False)
