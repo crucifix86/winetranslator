@@ -513,6 +513,8 @@ Build artifacts (gitignored):
 - [x] Automatic .exe detection after installation
 - [x] Per-app error logging
 - [x] Dependency caching system
+- [x] Audio support for games (auto-detects PulseAudio/PipeWire/ALSA)
+- [x] Toast notifications for user feedback (launch, remove, desktop shortcuts)
 
 ## Current Feature Set
 
@@ -544,40 +546,34 @@ Build artifacts (gitignored):
 - Auto-pulls and reinstalls package
 - Restart option after update
 
-## Current Issue: No Sound in Games 🔊
+## Audio Support ✅ FIXED!
 
-**Status:** Folder-based game installation works perfectly ✅
-**Problem:** Games run but have no audio output
+**Status:** Audio now works perfectly in games! 🔊
 
-**Common Wine Sound Issues:**
-1. Missing Wine audio drivers (PulseAudio/ALSA)
-2. Missing audio libraries (DirectSound, XACT, etc.)
-3. PulseAudio not running or misconfigured
-4. Wine audio configuration not set
-
-**Planned Solutions:**
-- [ ] Auto-detect PulseAudio/PipeWire availability
-- [ ] Add audio dependencies to winetricks install
+**Implementation:**
+- ✅ Auto-detects PulseAudio/PipeWire/ALSA audio system
+- ✅ Sets WINEAUDIODRIVER environment variable automatically
+- ✅ Installs audio dependencies via winetricks:
   - `sound` - Core audio support
   - `dsound` - DirectSound
   - `xact` - XACT audio engine (games)
-  - `directmusic` - DirectMusic
-- [ ] Set Wine audio driver automatically (WINEAUDIODRIVER)
-- [ ] Add "Fix Audio" button in app settings
-- [ ] Test with game to verify audio works
+  - `directmusic` - DirectMusic support
+  - `l3codecx` - MP3 codec
+- ✅ Configures DirectSound DLL overrides (dsound=n,b)
+- ✅ Unity, Unreal, and XNA games get audio packages automatically
 
-**Wine Audio Environment Variables:**
-```bash
-WINEDLLOVERRIDES="dsound=n,b"
-WINEAUDIODRIVER="pulse"  # or "alsa"
-```
+**How it works:**
+1. When launching an app, WineTranslator auto-detects your audio system:
+   - Checks for PulseAudio (`pactl info`)
+   - Checks for PipeWire (`pw-cli info`) - uses pulse protocol
+   - Falls back to ALSA if neither found
+2. Sets `WINEAUDIODRIVER=pulse` or `WINEAUDIODRIVER=alsa` automatically
+3. Sets `WINEDLLOVERRIDES=dsound=n,b` for better DirectSound compatibility
+4. When adding games, automatically installs audio dependencies
 
-**Winetricks Packages for Audio:**
-- `sound` - General audio support
-- `dsound` - DirectSound
-- `xact` - Microsoft XACT audio
-- `directmusic` - DirectMusic support
-- `l3codecx` - MP3 codec
+**Files Modified:**
+- `winetranslator/core/dependency_manager.py` - Audio dependency detection
+- `winetranslator/utils/wine_utils.py` - Audio driver detection and environment setup
 
 ## Next Phase: Portable Games & Folder-Based Apps ✅
 
