@@ -81,7 +81,6 @@ class TestedAppsView(Gtk.Box):
         self.apps_list = Gtk.ListBox()
         self.apps_list.set_selection_mode(Gtk.SelectionMode.NONE)
         self.apps_list.add_css_class("boxed-list")
-        scrolled.set_child(self.apps_list)
 
         # Clamp for better width
         clamp = Adw.Clamp()
