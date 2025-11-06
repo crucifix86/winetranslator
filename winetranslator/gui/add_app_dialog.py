@@ -340,11 +340,18 @@ class AddAppDialog(Adw.Window):
         self.add_button.set_sensitive(False)
         progress_dialog = Adw.MessageDialog.new(self)
         progress_dialog.set_heading("Adding Application")
-        progress_dialog.set_body("Setting up application and installing dependencies...")
+        progress_dialog.set_body("Starting...")
         progress_dialog.present()
+
+        def update_progress(message):
+            """Update progress dialog message."""
+            progress_dialog.set_body(message)
+            return False
 
         def add_thread():
             # Add application to database
+            GLib.idle_add(update_progress, "Adding application to database...")
+
             from ..core.app_launcher import AppLauncher
             launcher = AppLauncher(self.db)
             success, message, app_id = launcher.add_application(
@@ -361,7 +368,10 @@ class AddAppDialog(Adw.Window):
             if self.detected_deps and self.dep_manager.is_winetricks_available():
                 prefix = self.prefix_manager.get_prefix(prefix_id)
                 if prefix:
-                    for dep in self.detected_deps:
+                    deps_list = sorted(self.detected_deps)
+                    total = len(deps_list)
+                    for idx, dep in enumerate(deps_list, 1):
+                        GLib.idle_add(update_progress, f"Installing dependency {idx} of {total}: {dep}...")
                         self.dep_manager.install_dependency(
                             prefix['path'],
                             dep,
