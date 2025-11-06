@@ -5,12 +5,17 @@ A simple, easy-to-use Wine GUI for running Windows applications on Linux with au
 ## Features
 
 - **Easy-to-use GTK4 interface** - Modern, native Linux design using Libadwaita
+- **Tested Apps Library** - Curated list of Windows apps known to work perfectly with Wine
 - **Isolated Wine prefixes** - Each application gets its own clean environment
 - **Multiple Wine versions** - Support for Wine, Wine-Staging, Proton, and custom builds
 - **Automatic dependency detection** - Detects Unity, Unreal, .NET, XNA games and apps
 - **Winetricks integration** - Auto-installs VC++ runtimes, DirectX, fonts, and more
+- **Dependency caching** - Download dependencies once, reuse across all apps (optional)
+- **Per-app error logging** - Each app gets its own log file for troubleshooting
+- **Dependency profiles** - Tracks what dependencies each app needs for future reference
 - **One-click launching** - Simple application library with launch statistics
 - **Smart runner detection** - Automatically finds Wine installations on your system
+- **Built-in updater** - Update WineTranslator from within the app
 
 ## Why WineTranslator?
 
@@ -99,21 +104,48 @@ Or run directly without installation:
    ./run.sh
    ```
 
-2. **Add an application**
+2. **Easy Way: Install from Tested Apps**
+   - Click the **Tested Apps** tab
+   - Browse verified Windows applications
+   - Click **Download & Install** on any app (e.g., WinSCP)
+   - Wait for automatic download and installation
+   - App appears in your Library - ready to launch!
+
+3. **Manual Way: Add your own application**
    - Click the **+** button in the header
    - Select your Windows .exe file
    - Give it a name
    - Choose or create a Wine prefix
    - Click **Add Application**
 
-3. **Automatic magic happens**
+4. **Automatic magic happens**
    - WineTranslator detects if your app needs DirectX, .NET, VC++ runtimes, etc.
    - Dependencies are installed automatically in the background
    - Your app is ready to run!
 
-4. **Launch your app**
+5. **Launch your app**
+   - Go to **Library** tab
    - Click the application card
    - Click **Launch**
+
+## Preferences
+
+Access via Menu → Preferences
+
+### Dependency Caching
+
+Enable dependency caching to speed up installations and save bandwidth:
+
+1. Open Preferences
+2. Toggle **"Enable Dependency Caching"** ON
+3. Optionally choose a custom cache location (default: `~/.local/share/winetranslator/dep_cache/`)
+4. Dependencies will now be downloaded once and reused across all apps
+
+Benefits:
+- Faster app installations
+- Reduced bandwidth usage
+- Can backup/share cache folder
+- Eventually host cache for easy distribution
 
 ## Updating WineTranslator
 
@@ -153,18 +185,24 @@ WineTranslator is built with simplicity and maintainability in mind:
 
 ```
 winetranslator/
-├── core/                    # Business logic
-│   ├── runner_manager.py    # Wine version management
-│   ├── prefix_manager.py    # Isolated prefix creation
-│   ├── app_launcher.py      # Application execution
-│   └── dependency_manager.py # Winetricks integration
-├── gui/                     # GTK4 interface
-│   ├── main_window.py       # Application library
-│   └── add_app_dialog.py    # Setup wizard
-├── database/                # SQLite storage
-│   └── db.py               # Schema and queries
-└── utils/                   # Utilities
-    └── wine_utils.py       # Wine detection and execution
+├── core/                      # Business logic
+│   ├── runner_manager.py      # Wine version management
+│   ├── prefix_manager.py      # Isolated prefix creation
+│   ├── app_launcher.py        # Application execution
+│   ├── dependency_manager.py  # Winetricks integration
+│   └── updater.py            # Built-in update system
+├── gui/                       # GTK4 interface
+│   ├── main_window.py         # Application library with tabs
+│   ├── add_app_dialog.py      # Setup wizard
+│   ├── tested_apps_view.py    # Tested apps browser
+│   └── preferences_dialog.py  # Settings
+├── database/                  # SQLite storage
+│   └── db.py                 # Schema and queries
+├── data/                      # Application data
+│   └── tested_apps.py        # Curated app database
+└── utils/                     # Utilities
+    ├── wine_utils.py         # Wine detection and execution
+    └── logger.py             # Logging setup
 ```
 
 ## Key Design Decisions
@@ -215,7 +253,9 @@ Set per-app environment variables for advanced tweaking:
 
 - **Database**: `~/.local/share/winetranslator/winetranslator.db`
 - **Prefixes**: `~/.local/share/winetranslator/prefixes/`
-- **Logs**: Application output is captured per-launch (coming soon)
+- **App Logs**: `~/.local/share/winetranslator/app_logs/` - Per-app Wine output logs
+- **Main Log**: `~/.local/share/winetranslator/winetranslator.log` - Application debug log
+- **Dependency Cache**: `~/.local/share/winetranslator/dep_cache/` - Cached winetricks downloads (if enabled)
 
 ## Roadmap
 
@@ -228,11 +268,15 @@ Set per-app environment variables for advanced tweaking:
 - [x] Automatic dependency detection
 
 ### Phase 2: Enhanced Features (In Progress)
-- [ ] Preferences dialog
+- [x] Preferences dialog
+- [x] Dependency caching system
+- [x] Per-app error logging
+- [x] Dependency profile tracking
+- [x] Tested Apps library with WinSCP
+- [x] Built-in update system
 - [ ] Runner version switching per-app
 - [ ] DXVK/VKD3D toggle switches
-- [ ] Application log viewer
-- [ ] Icon extraction from .exe files
+- [ ] Application log viewer UI
 - [ ] Desktop shortcut creation
 
 ### Phase 3: Power User Features (Future)
@@ -283,8 +327,33 @@ sudo pacman -S winetricks    # Arch
 ### Application won't launch
 1. Check Wine is installed: `wine --version`
 2. Check the executable path is correct
-3. Try running from terminal: `WINEPREFIX=/path/to/prefix wine /path/to/app.exe`
-4. Check Wine logs in the prefix directory
+3. **Check the app's log file**: `tail -f ~/.local/share/winetranslator/app_logs/YourAppName.log`
+4. **Check the main log**: `tail -f ~/.local/share/winetranslator/winetranslator.log`
+5. Try running from terminal: `WINEPREFIX=/path/to/prefix wine /path/to/app.exe`
+
+### Debugging Tips
+
+**Per-App Logs:**
+Every app launch creates a log file in `~/.local/share/winetranslator/app_logs/` with Wine's output. This helps debug crashes and errors.
+
+```bash
+# Watch an app's log in real-time
+tail -f ~/.local/share/winetranslator/app_logs/WinSCP-6.5.4-Setup.log
+
+# Find errors in app logs
+grep -i error ~/.local/share/winetranslator/app_logs/*.log
+```
+
+**Main Application Log:**
+WineTranslator's own debug log shows what's happening behind the scenes:
+
+```bash
+# Watch the main log
+tail -f ~/.local/share/winetranslator/winetranslator.log
+
+# Find warnings
+grep -i warning ~/.local/share/winetranslator/winetranslator.log
+```
 
 ## Inspiration
 
