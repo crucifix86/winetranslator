@@ -387,7 +387,3 @@ class AddAppDialog(Adw.Window):
             error_dialog.add_response("ok", "OK")
             error_dialog.present()
             self.add_button.set_sensitive(True)
-
-
-# Register signal
-GObject.signal_new('app-added', AddAppDialog, GObject.SignalFlags.RUN_FIRST, None, ())
