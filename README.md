@@ -169,8 +169,10 @@ Shortcuts use the `winetranslator-launch` command and work perfectly with your d
 **Available actions:**
 - **Open Install Directory** - Opens the app's installation folder in your file manager
 - **Edit Launch Arguments** - Add command-line arguments (like `-console`, `-windowed`, `-fullscreen`)
+- **Change Executable** - Switch to a different .exe file without removing the app
 
 Perfect for:
+- Switching from launcher to actual game exe (e.g., SkyrimSELauncher.exe → SkyrimSE.exe)
 - Modifying configuration files
 - Adding mods or DLCs
 - Setting game launch options
