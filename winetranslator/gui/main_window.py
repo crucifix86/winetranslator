@@ -81,15 +81,28 @@ class MainWindow(Adw.ApplicationWindow):
         menu_button.set_menu_model(menu)
         header.pack_end(menu_button)
 
-        # Toolbar view for content
-        toolbar_view = Adw.ToolbarView()
-        main_box.append(toolbar_view)
+        # Tab view for Library and Tested Apps
+        self.tab_view = Adw.TabView()
+        self.tab_view.set_vexpand(True)
+        main_box.append(self.tab_view)
 
-        # Main content - scrolled window with application grid
+        # Tab bar
+        tab_bar = Adw.TabBar()
+        tab_bar.set_view(self.tab_view)
+        tab_bar.set_autohide(False)
+        main_box.insert_child_after(tab_bar, header)
+
+        # Library tab (existing functionality)
+        library_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        library_page = self.tab_view.append(library_box)
+        library_page.set_title("Library")
+        library_page.set_icon(Gio.ThemedIcon.new("folder-symbolic"))
+
+        # Scrolled window for library
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_vexpand(True)
         scrolled.set_hexpand(True)
-        toolbar_view.set_content(scrolled)
+        library_box.append(scrolled)
 
         # Flow box for application icons
         self.app_flow_box = Gtk.FlowBox()
@@ -106,6 +119,18 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Empty state
         self.empty_state = self._create_empty_state()
+
+        # Tested Apps tab
+        from .tested_apps_view import TestedAppsView
+        tested_apps_view = TestedAppsView(
+            self.db,
+            self.runner_manager,
+            self.prefix_manager,
+            self.dep_manager
+        )
+        tested_page = self.tab_view.append(tested_apps_view)
+        tested_page.set_title("Tested Apps")
+        tested_page.set_icon(Gio.ThemedIcon.new("starred-symbolic"))
 
         # Status page placeholder (shown when no apps)
         self.status_page = Adw.StatusPage()

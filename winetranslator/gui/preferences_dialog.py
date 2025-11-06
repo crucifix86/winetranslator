@@ -130,7 +130,8 @@ class PreferencesDialog(Adw.PreferencesWindow):
         # Set initial folder
         current_path = self.cache_path_label.get_text()
         if current_path and os.path.exists(current_path):
-            dialog.set_initial_folder(Gtk.FileDialog.File.new_for_path(current_path))
+            initial_folder = Gio.File.new_for_path(current_path)
+            dialog.set_initial_folder(initial_folder)
 
         dialog.select_folder(self, None, self._on_cache_location_selected)
 
