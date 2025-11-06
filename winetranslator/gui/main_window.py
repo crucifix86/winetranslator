@@ -383,8 +383,8 @@ class MainWindow(Adw.ApplicationWindow):
             return
 
         try:
-            # Desktop entry directory
-            desktop_dir = os.path.join(os.path.expanduser('~/.local/share/applications'))
+            # Desktop directory (where user can see the icon)
+            desktop_dir = os.path.expanduser('~/Desktop')
             os.makedirs(desktop_dir, exist_ok=True)
 
             # Sanitize app name for filename
