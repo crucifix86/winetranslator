@@ -23,7 +23,28 @@ Unlike other Wine tools, WineTranslator focuses on **ease of use**:
 
 ## Installation
 
-### Automatic Installation (Recommended)
+### AppImage (Easiest - Recommended for Most Users)
+
+**Download and run** - no installation needed!
+
+```bash
+# Download the AppImage
+wget https://github.com/crucifix86/winetranslator/releases/latest/download/WineTranslator-x86_64.AppImage
+
+# Make it executable
+chmod +x WineTranslator-x86_64.AppImage
+
+# Run it!
+./WineTranslator-x86_64.AppImage
+```
+
+The AppImage is **portable** and works on any Linux distribution. On first run, it will check for required system dependencies (Wine, GTK4, Libadwaita) and show install instructions if needed.
+
+📖 **See [APPIMAGE.md](APPIMAGE.md) for detailed AppImage documentation**
+
+---
+
+### Automatic Installation (For Developers)
 
 We provide an automatic installation script that detects your Linux distribution and installs all dependencies:
 
@@ -38,7 +59,7 @@ The script supports:
 - Arch Linux/Manjaro/EndeavourOS
 - openSUSE
 
-### Manual Installation
+### Manual Installation (Advanced)
 
 #### System Dependencies
 

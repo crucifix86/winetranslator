@@ -12,6 +12,7 @@ import threading
 from .database.db import Database
 from .gui.main_window import MainWindow
 from .core.updater import Updater
+from .utils.first_run import FirstRunChecker
 
 
 class WineTranslatorApp(Adw.Application):
@@ -27,6 +28,15 @@ class WineTranslatorApp(Adw.Application):
 
     def do_activate(self):
         """Activate the application."""
+        # Check dependencies on first run
+        checker = FirstRunChecker()
+        all_ok, missing = checker.check_all()
+
+        if not all_ok:
+            # Show dependency warning dialog
+            self._show_dependency_warning(checker)
+            return
+
         # Initialize database
         if not self.db:
             self.db = Database()
@@ -34,6 +44,36 @@ class WineTranslatorApp(Adw.Application):
         # Create main window
         window = MainWindow(self, self.db)
         window.present()
+
+    def _show_dependency_warning(self, checker: FirstRunChecker):
+        """Show warning dialog for missing dependencies."""
+        # Create a minimal window to show the dialog
+        window = Adw.Window()
+        window.set_title("WineTranslator - Setup Required")
+        window.set_default_size(600, 400)
+
+        dialog = Adw.MessageDialog.new(window)
+        dialog.set_heading("Dependencies Required")
+        dialog.set_body(checker.get_friendly_message())
+        dialog.add_response("quit", "Quit")
+        dialog.add_response("continue", "Continue Anyway")
+        dialog.set_response_appearance("continue", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.connect("response", self._on_dependency_warning_response)
+
+        window.present()
+        dialog.present()
+
+    def _on_dependency_warning_response(self, dialog, response):
+        """Handle dependency warning response."""
+        if response == "continue":
+            # User wants to continue anyway
+            if not self.db:
+                self.db = Database()
+            window = MainWindow(self, self.db)
+            window.present()
+        else:
+            # Quit the application
+            self.quit()
 
     def do_startup(self):
         """Application startup."""
