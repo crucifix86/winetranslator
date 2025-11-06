@@ -170,6 +170,7 @@ Shortcuts use the `winetranslator-launch` command and work perfectly with your d
 - **Open Install Directory** - Opens the app's installation folder in your file manager
 - **Edit Launch Arguments** - Add command-line arguments (like `-console`, `-windowed`, `-fullscreen`)
 - **Change Executable** - Switch to a different .exe file without removing the app
+- **Manage Dependencies** - Manually install additional dependencies if needed
 
 Perfect for:
 - Switching from launcher to actual game exe (e.g., SkyrimSELauncher.exe → SkyrimSE.exe)
@@ -392,10 +393,36 @@ winetranslator/
 
 WineTranslator automatically detects:
 
+- **32-bit vs 64-bit executables** - Reads PE header to determine architecture
+  - **64-bit games** get official Microsoft VC++ x64 redistributable
+  - **32-bit games** get winetricks-based dependencies
 - **Unity games** - Checks for `UnityPlayer.dll`, installs VC++, DirectX, DXVK
 - **Unreal Engine** - Checks for `Engine/` directory, installs VC++, DirectX
 - **.NET applications** - Checks for `.dll.config` files, installs .NET Framework
 - **XNA games** - Checks for `Microsoft.Xna.Framework.dll`, installs XNA 4.0
+
+### Manual Dependency Installation
+
+While automatic detection works for most apps, you can manually install dependencies:
+
+1. Right-click any app in Library
+2. Select **"Manage Dependencies"**
+3. Browse dependencies by category:
+   - **Runtime** - Visual C++ redistributables (2008-2019)
+   - **.NET** - .NET Framework versions
+   - **Graphics** - DirectX, DXVK
+   - **Fonts** - Microsoft fonts, Liberation, etc.
+   - **Gaming** - XNA Framework, PhysX
+   - **Media** - QuickTime, Windows Media Player
+   - **Audio** - DirectSound, XACT, codecs
+4. Click **Install** next to any dependency
+5. Wait for installation to complete
+
+**When to use:**
+- Auto-detection missed a dependency
+- Adding optional fonts or codecs
+- Troubleshooting launch failures
+- Installing specific runtime versions
 
 ## Advanced Usage
 
