@@ -50,9 +50,14 @@ class DependencyManager:
         'consolas',       # Consolas font
     ]
 
-    def __init__(self):
-        """Initialize the dependency manager."""
+    def __init__(self, db=None):
+        """Initialize the dependency manager.
+
+        Args:
+            db: Optional database instance for checking settings.
+        """
         self.winetricks_path = self._find_winetricks()
+        self.db = db
 
     def _find_winetricks(self) -> Optional[str]:
         """Find winetricks executable on the system."""
@@ -89,10 +94,24 @@ class DependencyManager:
         if wine_path:
             env['WINE'] = wine_path
 
+        # Check if caching is enabled
+        cache_enabled = False
+        cache_path = None
+        if self.db:
+            cache_enabled = self.db.get_setting('cache_dependencies', '0') == '1'
+            if cache_enabled:
+                cache_path = self.db.get_setting('cache_path', '')
+                if cache_path:
+                    # Create cache directory if it doesn't exist
+                    os.makedirs(cache_path, exist_ok=True)
+                    env['WINETRICKS_CACHE'] = cache_path
+                    logger.info(f"Using dependency cache: {cache_path}")
+
         try:
-            logger.debug(f"Running winetricks command: {self.winetricks_path} -q {dependency}")
+            cmd = [self.winetricks_path, '-q', dependency]
+            logger.debug(f"Running winetricks command: {' '.join(cmd)}")
             result = subprocess.run(
-                [self.winetricks_path, '-q', dependency],
+                cmd,
                 env=env,
                 capture_output=True,
                 text=True,

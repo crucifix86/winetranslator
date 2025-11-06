@@ -218,12 +218,9 @@ class WineTranslatorApp(Adw.Application):
 
     def on_preferences(self, action, param):
         """Show preferences dialog."""
-        # TODO: Implement preferences dialog
-        dialog = Adw.MessageDialog.new(self.get_active_window())
-        dialog.set_heading("Preferences")
-        dialog.set_body("Preferences dialog coming soon!")
-        dialog.add_response("ok", "OK")
-        dialog.present()
+        from .gui.preferences_dialog import PreferencesDialog
+        prefs = PreferencesDialog(self.get_active_window(), self.db)
+        prefs.present()
 
 
 def main():

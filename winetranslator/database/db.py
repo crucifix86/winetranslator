@@ -121,6 +121,18 @@ class Database:
             )
         """)
 
+        # Settings table (user preferences)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+
+        # Set default settings
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('cache_dependencies', '0')")
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('cache_path', '')")
+
         self.conn.commit()
 
     # Runner operations
@@ -351,6 +363,28 @@ class Database:
         """, (dependency,))
         row = cursor.fetchone()
         return dict(row) if row else {}
+
+    # Settings operations
+    def get_setting(self, key: str, default: str = None) -> Optional[str]:
+        """Get a setting value."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        return row['value'] if row else default
+
+    def set_setting(self, key: str, value: str):
+        """Set a setting value."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)
+        """, (key, value))
+        self.conn.commit()
+
+    def get_all_settings(self) -> Dict[str, str]:
+        """Get all settings."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT key, value FROM settings")
+        return {row['key']: row['value'] for row in cursor.fetchall()}
 
     def close(self):
         """Close the database connection."""

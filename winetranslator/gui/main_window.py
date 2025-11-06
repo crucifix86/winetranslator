@@ -42,7 +42,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.runner_manager = RunnerManager(db)
         self.prefix_manager = PrefixManager(db)
         self.app_launcher = AppLauncher(db)
-        self.dep_manager = DependencyManager()
+        self.dep_manager = DependencyManager(db)
         self.updater = Updater()
 
         # Window properties
