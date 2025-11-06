@@ -385,41 +385,56 @@ class AddAppDialog(Adw.Window):
             return False
 
         def add_thread():
+            logger.info("add_thread started")
             # Calculate total steps
             total_steps = 1 + (len(self.detected_deps) if self.detected_deps else 0)
             current_step = 0
+            logger.info(f"Total steps: {total_steps}, Detected deps: {self.detected_deps}")
 
             # Add application to database
             current_step += 1
+            logger.info(f"Step {current_step}/{total_steps}: Adding to database")
             GLib.idle_add(update_progress, "Adding application to database...", current_step / total_steps)
 
             from ..core.app_launcher import AppLauncher
             launcher = AppLauncher(self.db)
+            logger.info("Calling launcher.add_application")
             success, message, app_id = launcher.add_application(
                 name=name,
                 executable_path=self.selected_exe,
                 prefix_id=prefix_id
             )
+            logger.info(f"launcher.add_application returned: success={success}, app_id={app_id}, message={message}")
 
             if not success or not app_id:
+                logger.error(f"Failed to add app: {message}")
                 GLib.idle_add(self._on_add_complete, False, message, progress_window)
                 return
 
             # Install dependencies
             if self.detected_deps and self.dep_manager.is_winetricks_available():
+                logger.info(f"Installing {len(self.detected_deps)} dependencies")
                 prefix = self.prefix_manager.get_prefix(prefix_id)
                 if prefix:
+                    logger.info(f"Got prefix: {prefix['name']}")
                     deps_list = sorted(self.detected_deps)
                     total = len(deps_list)
                     for idx, dep in enumerate(deps_list, 1):
                         current_step += 1
+                        logger.info(f"Step {current_step}/{total_steps}: Installing {dep}")
                         GLib.idle_add(update_progress, f"Installing dependency {idx} of {total}: {dep}...", current_step / total_steps)
                         self.dep_manager.install_dependency(
                             prefix['path'],
                             dep,
                             prefix.get('runner_path')
                         )
+                        logger.info(f"Finished installing {dep}")
+                else:
+                    logger.error("Failed to get prefix")
+            else:
+                logger.info("No dependencies to install or winetricks not available")
 
+            logger.info("add_thread completed, calling _on_add_complete")
             GLib.idle_add(self._on_add_complete, True, f"Application '{name}' added successfully", progress_window)
 
         thread = threading.Thread(target=add_thread, daemon=True)
