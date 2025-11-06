@@ -11,6 +11,7 @@ A simple, easy-to-use Wine GUI for running Windows applications on Linux with au
 - **Context menu** - Right-click apps for quick actions (open directory, edit arguments, etc.)
 - **Launch arguments** - Add command-line arguments per-app (like -console, -windowed, -fullscreen)
 - **Wine C: drive access** - Quick button to open the Wine prefix drive_c folder
+- **Xbox controller support** - Automatic detection and XInput installation for gamepad-enabled games
 - **Audio support** - Automatic audio configuration (PulseAudio/PipeWire/ALSA detection)
 - **Memory management** - Large Address Aware setting for big game installers (FitGirl repacks)
 - **Smart removal** - Choose to keep files or delete them when removing apps
@@ -171,6 +172,7 @@ Shortcuts use the `winetranslator-launch` command and work perfectly with your d
 - **Edit Launch Arguments** - Add command-line arguments (like `-console`, `-windowed`, `-fullscreen`)
 - **Change Executable** - Switch to a different .exe file without removing the app
 - **Manage Dependencies** - Manually install additional dependencies if needed
+- **Enable Controller Support** - Set up Xbox controller support for games
 
 Perfect for:
 - Switching from launcher to actual game exe (e.g., SkyrimSELauncher.exe → SkyrimSE.exe)
@@ -204,6 +206,36 @@ Quick access to Wine prefix files:
 3. Browse the Windows C: drive (drive_c folder)
 
 Perfect for finding game files, save locations, or manually installing mods.
+
+### Xbox Controller Support
+
+Enable Xbox controller support for games with automatic detection:
+
+1. **Connect your Xbox controller** (wired or wireless)
+2. Right-click any game in Library
+3. Select **"Enable Controller Support"**
+4. WineTranslator will detect your controllers and show them
+5. Click **Enable Controller** to install XInput support
+6. Your controller is now ready to use!
+
+**What it does:**
+- Installs XInput dependencies (xinput via winetricks)
+- Sets SDL environment variables for controller mapping
+- Enables background controller events
+- Works with Xbox 360, Xbox One, and Xbox Series controllers
+
+**Automatic Detection:**
+- Scans `/dev/input/js*` for connected controllers
+- Identifies Xbox/Microsoft controllers automatically
+- Shows controller names in the dialog
+- Works even if controllers aren't connected (still installs support)
+
+**Controller Support:**
+- ✅ Xbox 360 controllers
+- ✅ Xbox One controllers
+- ✅ Xbox Series X|S controllers
+- ✅ Wired and wireless connections
+- 🔮 Future: PlayStation and other controller types
 
 ### Smart Removal
 
