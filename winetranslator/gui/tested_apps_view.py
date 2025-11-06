@@ -89,8 +89,8 @@ class TestedAppsView(Gtk.Box):
         clamp.set_child(self.apps_list)
         scrolled.set_child(clamp)
 
-        # Load apps
-        self._load_apps()
+        # Don't load apps here - wait for fetch to complete
+        # The empty state will show until data is fetched
 
     def _load_apps(self, category='All'):
         """Load tested apps into the list."""
@@ -98,11 +98,15 @@ class TestedAppsView(Gtk.Box):
         logger.info(f"Total tested apps available: {len(self.tested_apps)}")
 
         # Clear existing
+        logger.info("Clearing existing rows")
+        removed_count = 0
         while True:
             row = self.apps_list.get_row_at_index(0)
             if row is None:
                 break
             self.apps_list.remove(row)
+            removed_count += 1
+        logger.info(f"Removed {removed_count} rows")
 
         # Filter by category
         apps = self.tested_apps
@@ -131,9 +135,13 @@ class TestedAppsView(Gtk.Box):
                 try:
                     card = self._create_app_card(app)
                     self.apps_list.append(card)
+                    card.set_visible(True)  # Explicitly make visible
                     logger.info(f"Card added successfully for {app.get('name')}")
                 except Exception as e:
                     logger.error(f"Error creating card for {app.get('name')}: {e}", exc_info=True)
+
+            # Force the list to update
+            self.apps_list.queue_draw()
 
     def _create_app_card(self, app):
         """Create a card for a tested app."""
