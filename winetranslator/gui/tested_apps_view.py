@@ -362,6 +362,12 @@ class TestedAppsView(Gtk.Box):
                     GLib.idle_add(self._on_install_error, f"Failed to create prefix: {msg}", progress_dialog)
                     return
 
+                # Get prefix object
+                prefix = self.prefix_manager.get_prefix(prefix_id)
+                if not prefix:
+                    GLib.idle_add(self._on_install_error, "Failed to get prefix", progress_dialog)
+                    return
+
                 # Run the installer first
                 GLib.idle_add(lambda: progress_dialog.set_body("Running installer..."))
                 logger.info(f"Running installer: {dest_path}")
