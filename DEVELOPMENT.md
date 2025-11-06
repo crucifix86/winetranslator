@@ -544,7 +544,49 @@ Build artifacts (gitignored):
 - Auto-pulls and reinstalls package
 - Restart option after update
 
-## Next Steps
+## Next Phase: Portable Games & Folder-Based Apps
+
+**Goal:** Support games/apps that come as folders with .exe files (no installer)
+
+**Examples:**
+- GOG games (extracted)
+- Portable games
+- Cracked games (folders with game.exe)
+- Itch.io games
+- Extracted archives
+
+**Current Solution:**
+Container apps partially support this, but needs enhancement for gaming use case.
+
+**Planned Enhancements:**
+- [ ] Drag-and-drop folder import
+- [ ] Automatic .exe detection in dropped folders
+- [ ] Game-specific dependency detection (Unity, Unreal, etc.)
+- [ ] Better workflow for folder-based games
+- [ ] Option to "Import Folder" directly from + button
+- [ ] Automatic icon extraction from main .exe
+
+**Current Workflow (to be improved):**
+1. Use Tested Apps → Container type
+2. Or manually: + button → select .exe from folder
+3. Container creates prefix + dependencies
+
+**Improved Workflow:**
+1. Click + button → "Import Folder" option
+2. Select game folder
+3. Automatically detect main .exe
+4. Auto-detect engine (Unity/Unreal) for dependencies
+5. Create prefix and launch
+
+**Testing Notes:**
+- Test with GOG game folder
+- Test with portable game (single .exe)
+- Test with Unity game folder
+- Test with Unreal game folder
+- Verify dependency detection works
+- Check right-click opens correct folder
+
+## Future Steps
 
 - [ ] Runner version switching per-app
 - [ ] DXVK/VKD3D toggle switches
