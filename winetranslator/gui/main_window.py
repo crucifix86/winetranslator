@@ -391,6 +391,29 @@ class MainWindow(Adw.ApplicationWindow):
             self.db.set_env_var(app_id, 'SDL_GAMECONTROLLERCONFIG', 'auto')
             self.db.set_env_var(app_id, 'SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS', '1')
 
+            # Add DLL overrides for XInput to use native DLLs
+            # This is critical - Wine's built-in XInput doesn't support controllers properly
+            logger.info("Setting xinput DLL overrides to native")
+            env = os.environ.copy()
+            env['WINEPREFIX'] = prefix['path']
+            if prefix.get('runner_path'):
+                env['WINE'] = prefix['runner_path']
+
+            # Set all xinput DLLs to native (prefer Windows DLLs over Wine's implementation)
+            xinput_dlls = ['xinput1_4', 'xinput1_3', 'xinput1_2', 'xinput1_1', 'xinput9_1_0', 'xinputuap']
+            for dll in xinput_dlls:
+                try:
+                    subprocess.run(
+                        ['wine', 'reg', 'add', 'HKEY_CURRENT_USER\\Software\\Wine\\DllOverrides',
+                         '/v', f'*{dll}', '/t', 'REG_SZ', '/d', 'native', '/f'],
+                        env=env,
+                        capture_output=True,
+                        timeout=10
+                    )
+                    logger.info(f"Set {dll} to native")
+                except Exception as e:
+                    logger.warning(f"Failed to set override for {dll}: {e}")
+
             GLib.idle_add(self._on_controller_enabled, True, "Controller support enabled", progress_dialog)
 
         thread = threading.Thread(target=enable_thread, daemon=True)
