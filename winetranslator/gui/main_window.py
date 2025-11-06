@@ -79,6 +79,11 @@ class MainWindow(Adw.ApplicationWindow):
         change_exe_action.connect("activate", self._on_change_executable_action)
         app.add_action(change_exe_action)
 
+        # Manage dependencies action (with parameter)
+        manage_deps_action = Gio.SimpleAction.new("manage-dependencies", GLib.VariantType.new("s"))
+        manage_deps_action.connect("activate", self._on_manage_dependencies_action)
+        app.add_action(manage_deps_action)
+
     def _on_open_directory_action(self, action, parameter):
         """Handle open directory action from context menu."""
         app_id = int(parameter.get_string())
@@ -160,6 +165,123 @@ class MainWindow(Adw.ApplicationWindow):
         except GLib.Error as e:
             if e.code != 2:  # Ignore dismiss
                 logger.error(f"Error selecting executable: {e}", exc_info=True)
+
+    def _on_manage_dependencies_action(self, action, parameter):
+        """Handle manage dependencies action from context menu."""
+        app_id = int(parameter.get_string())
+        self._show_manage_dependencies_dialog(app_id)
+
+    def _show_manage_dependencies_dialog(self, app_id: int):
+        """Show dialog to manually install dependencies for an app."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        # Create dialog window
+        dialog = Adw.Window()
+        dialog.set_transient_for(self)
+        dialog.set_modal(True)
+        dialog.set_default_size(500, 600)
+        dialog.set_title(f"Manage Dependencies - {app['name']}")
+
+        # Main box
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        dialog.set_content(main_box)
+
+        # Header
+        header = Adw.HeaderBar()
+        main_box.append(header)
+
+        # Content
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_vexpand(True)
+        main_box.append(scrolled)
+
+        # Create list box for dependencies
+        list_box = Gtk.ListBox()
+        list_box.set_selection_mode(Gtk.SelectionMode.NONE)
+        list_box.add_css_class("boxed-list")
+        scrolled.set_child(list_box)
+
+        # Get available dependencies
+        from ..core.dependency_manager import DependencyManager
+        dep_manager = DependencyManager(self.db)
+        available_deps = dep_manager.get_available_dependencies()
+
+        # Group by category
+        categories = {}
+        for dep in available_deps:
+            category = dep['category']
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(dep)
+
+        # Add dependencies by category
+        for category, deps in sorted(categories.items()):
+            # Category header
+            category_row = Adw.PreferencesGroup()
+            category_row.set_title(category)
+            list_box.append(category_row)
+
+            for dep in deps:
+                row = Adw.ActionRow()
+                row.set_title(dep['name'])
+                row.set_subtitle(dep['description'])
+
+                # Install button
+                install_btn = Gtk.Button(label="Install")
+                install_btn.set_valign(Gtk.Align.CENTER)
+                install_btn.connect("clicked", self._on_install_dependency_clicked,
+                                  app_id, dep['name'], dialog)
+                row.add_suffix(install_btn)
+
+                category_row.add(row)
+
+        dialog.present()
+
+    def _on_install_dependency_clicked(self, button, app_id: int, dep_name: str, parent_dialog):
+        """Handle install dependency button click."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        prefix_id = app['prefix_id']
+        prefix = self.prefix_manager.get_prefix(prefix_id)
+        if not prefix:
+            return
+
+        # Disable button during installation
+        button.set_sensitive(False)
+        button.set_label("Installing...")
+
+        def install_thread():
+            from ..core.dependency_manager import DependencyManager
+            dep_manager = DependencyManager(self.db)
+
+            success, message = dep_manager.install_dependency(
+                prefix['path'],
+                dep_name,
+                prefix.get('runner_path')
+            )
+
+            GLib.idle_add(self._on_dependency_installed, success, message, dep_name, button)
+
+        thread = threading.Thread(target=install_thread, daemon=True)
+        thread.start()
+
+    def _on_dependency_installed(self, success: bool, message: str, dep_name: str, button):
+        """Handle dependency installation completion."""
+        if success:
+            button.set_label("Installed ✓")
+            toast = Adw.Toast.new(f"{dep_name} installed successfully")
+        else:
+            button.set_label("Failed ✗")
+            button.set_sensitive(True)
+            toast = Adw.Toast.new(f"Failed to install {dep_name}: {message}")
+
+        toast.set_timeout(3)
+        self.toast_overlay.add_toast(toast)
+        return False
 
     def _show_edit_arguments_dialog(self, app_id: int):
         """Show dialog to edit launch arguments."""
@@ -418,6 +540,7 @@ class MainWindow(Adw.ApplicationWindow):
         menu.append("Open Install Directory", f"app.open-directory::{app_id}")
         menu.append("Edit Launch Arguments", f"app.edit-arguments::{app_id}")
         menu.append("Change Executable", f"app.change-executable::{app_id}")
+        menu.append("Manage Dependencies", f"app.manage-dependencies::{app_id}")
 
         # Create popover menu
         popover = Gtk.PopoverMenu()
