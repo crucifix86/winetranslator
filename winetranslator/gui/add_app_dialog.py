@@ -341,21 +341,57 @@ class AddAppDialog(Adw.Window):
         prefix_id = self.prefix_ids[selected_idx]
         logger.info(f"Adding app '{name}' with exe '{self.selected_exe}' to prefix {prefix_id}")
 
-        # Show progress dialog
+        # Show progress dialog with progress bar
         self.add_button.set_sensitive(False)
-        progress_dialog = Adw.MessageDialog.new(self)
-        progress_dialog.set_heading("Adding Application")
-        progress_dialog.set_body("Starting...")
-        progress_dialog.present()
 
-        def update_progress(message):
-            """Update progress dialog message."""
-            progress_dialog.set_body(message)
+        # Create progress window
+        progress_window = Adw.Window()
+        progress_window.set_transient_for(self)
+        progress_window.set_modal(True)
+        progress_window.set_default_size(400, 200)
+        progress_window.set_title("Adding Application")
+
+        # Content box
+        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content_box.set_margin_top(24)
+        content_box.set_margin_bottom(24)
+        content_box.set_margin_start(24)
+        content_box.set_margin_end(24)
+        content_box.set_spacing(12)
+        progress_window.set_content(content_box)
+
+        # Title
+        title_label = Gtk.Label(label="Adding Application")
+        title_label.add_css_class("title-2")
+        content_box.append(title_label)
+
+        # Progress label
+        progress_label = Gtk.Label(label="Starting...")
+        progress_label.set_wrap(True)
+        content_box.append(progress_label)
+
+        # Progress bar
+        progress_bar = Gtk.ProgressBar()
+        progress_bar.set_show_text(True)
+        content_box.append(progress_bar)
+
+        progress_window.present()
+
+        def update_progress(message, fraction):
+            """Update progress dialog message and bar."""
+            progress_label.set_text(message)
+            progress_bar.set_fraction(fraction)
+            progress_bar.set_text(f"{int(fraction * 100)}%")
             return False
 
         def add_thread():
+            # Calculate total steps
+            total_steps = 1 + (len(self.detected_deps) if self.detected_deps else 0)
+            current_step = 0
+
             # Add application to database
-            GLib.idle_add(update_progress, "Adding application to database...")
+            current_step += 1
+            GLib.idle_add(update_progress, "Adding application to database...", current_step / total_steps)
 
             from ..core.app_launcher import AppLauncher
             launcher = AppLauncher(self.db)
@@ -366,7 +402,7 @@ class AddAppDialog(Adw.Window):
             )
 
             if not success or not app_id:
-                GLib.idle_add(self._on_add_complete, False, message, progress_dialog)
+                GLib.idle_add(self._on_add_complete, False, message, progress_window)
                 return
 
             # Install dependencies
@@ -376,14 +412,15 @@ class AddAppDialog(Adw.Window):
                     deps_list = sorted(self.detected_deps)
                     total = len(deps_list)
                     for idx, dep in enumerate(deps_list, 1):
-                        GLib.idle_add(update_progress, f"Installing dependency {idx} of {total}: {dep}...")
+                        current_step += 1
+                        GLib.idle_add(update_progress, f"Installing dependency {idx} of {total}: {dep}...", current_step / total_steps)
                         self.dep_manager.install_dependency(
                             prefix['path'],
                             dep,
                             prefix.get('runner_path')
                         )
 
-            GLib.idle_add(self._on_add_complete, True, f"Application '{name}' added successfully", progress_dialog)
+            GLib.idle_add(self._on_add_complete, True, f"Application '{name}' added successfully", progress_window)
 
         thread = threading.Thread(target=add_thread, daemon=True)
         thread.start()
