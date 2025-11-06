@@ -499,13 +499,108 @@ Build artifacts (gitignored):
 
 ---
 
+## Completed Features ✅
+
+- [x] Fix update system completely
+- [x] Test + button with new AppImage
+- [x] Add comprehensive error handling
+- [x] Implement preferences dialog
+- [x] Create desktop shortcuts for apps
+- [x] Add beautiful dark theme with CSS
+- [x] Implement tested apps system (GitHub-powered)
+- [x] Add container apps for manual installation
+- [x] Right-click to open app directories
+- [x] Automatic .exe detection after installation
+- [x] Per-app error logging
+- [x] Dependency caching system
+
+## Current Feature Set
+
+### UI & Theming
+- **Dark theme with custom CSS** (`winetranslator/gui/style.css`)
+- Gradient backgrounds on cards
+- Hover animations and glow effects
+- Modern Libadwaita design
+- Tab view with Library and Tested Apps tabs
+
+### Application Management
+- One-click app launching
+- Right-click to open installation directory
+- Desktop shortcut creation (`.desktop` files)
+- Automatic dependency detection
+- Per-app Wine prefix isolation
+
+### Tested Apps System
+- **JSON-based** (`tested_apps.json` on GitHub)
+- Automatic fetching and caching
+- Two installation types:
+  - **Download**: Automatic installation with .exe detection
+  - **Container**: Manual setup for portable apps
+- Refresh button to reload list
+
+### Update System
+- Built-in updater (`core/updater.py`)
+- Checks GitHub for new commits
+- Auto-pulls and reinstalls package
+- Restart option after update
+
 ## Next Steps
 
-- [ ] Fix update system completely
-- [ ] Test + button with new AppImage
-- [ ] Add more comprehensive error handling
-- [ ] Implement preferences dialog
-- [ ] Add icon extraction from .exe files
-- [ ] Create desktop shortcuts for apps
-- [ ] Add app categories/tags
-- [ ] Implement search functionality
+- [ ] Runner version switching per-app
+- [ ] DXVK/VKD3D toggle switches
+- [ ] Application log viewer UI
+- [ ] Import from Steam/Lutris/Bottles
+- [ ] Wine debug log analysis
+- [ ] Performance monitoring
+
+## Tested Apps Structure
+
+Located in repository root: `tested_apps.json`
+
+Fetched from: `https://raw.githubusercontent.com/crucifix86/winetranslator/main/tested_apps.json`
+
+### Format
+```json
+{
+  "version": 2,
+  "last_updated": "2025-11-06",
+  "categories": ["All", "File Transfer", "Development", ...],
+  "apps": [
+    {
+      "name": "AppName",
+      "version": "1.0",
+      "description": "Description",
+      "installation_type": "download",  // or "container"
+      "url": "https://download.url/app.exe",  // for download type
+      "container_instructions": "...",  // for container type
+      "category": "Category",
+      "install_notes": "⚠️ Warning or important info",
+      "dependencies": ["vcrun2019", "d3dx9"],
+      "tested_date": "2025-11-06",
+      "working": true
+    }
+  ]
+}
+```
+
+### Installation Types
+
+**Download Apps:**
+- Have direct download URL
+- Installer runs automatically
+- App .exe is auto-detected in Wine prefix
+- Example: WinSCP
+
+**Container Apps:**
+- No download URL
+- Creates Wine prefix with dependencies
+- Opens folder for user to place files
+- User adds .exe manually afterward
+- Perfect for: GOG installers, portable apps, extracted archives
+
+### Adding New Tested Apps
+
+1. Edit `tested_apps.json` in repository
+2. Add new entry with required fields
+3. Commit and push to GitHub
+4. Users see it immediately (or on refresh)

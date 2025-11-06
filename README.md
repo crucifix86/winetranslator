@@ -131,6 +131,67 @@ Or run directly without installation:
    - Click the application card
    - Click **Launch**
 
+## Key Features Explained
+
+### Beautiful Dark Theme
+
+WineTranslator features a modern dark theme with:
+- Gradient backgrounds on app cards
+- Smooth hover animations that lift cards
+- Blue glowing buttons for suggested actions
+- Custom styled scrollbars and UI elements
+- Professional Libadwaita design language
+
+Everything is designed to look native to modern Linux desktops!
+
+### Desktop Shortcuts
+
+Create native Linux shortcuts for your Windows apps:
+
+1. Click on any installed app in the Library tab
+2. Click **"Create Desktop Shortcut"**
+3. The app will appear in your system's application menu
+4. Launch it like any native Linux application!
+
+Shortcuts use the `winetranslator-launch` command and work perfectly with your desktop environment.
+
+### Right-Click to Open Directories
+
+**Right-click any app card** in the Library tab to instantly open its installation directory in your file manager. Perfect for:
+- Modifying configuration files
+- Adding mods or DLCs
+- Inspecting installation
+- Quick file access
+
+### Container Apps (Manual Installation)
+
+Some apps don't have direct download links or come as portable/extracted archives. Container apps solve this:
+
+**What are containers?**
+- Pre-configured Wine prefixes with dependencies installed
+- A dedicated folder where you place the app files manually
+- Perfect for portable apps, GOG installers, or extracted archives
+
+**How to use:**
+1. Go to **Tested Apps** tab
+2. Find a container app (shows "Setup Container" button)
+3. Click **"Setup Container"**
+4. Wine prefix and dependencies are installed automatically
+5. A folder opens - place your app files there
+6. Use the **+** button to add the .exe to your library
+7. Right-click the container card to reopen the folder anytime
+
+### Tested Apps Library
+
+Pre-tested Windows applications known to work perfectly:
+- **Fetches from GitHub** - Always up-to-date list
+- **One-click install** - Downloads and installs automatically
+- **Automatic .exe detection** - Finds the real app after installation
+- **Pre-configured dependencies** - Everything set up for you
+- **Two types**: Download (automatic) and Container (manual)
+
+Add more apps by editing `tested_apps.json` on GitHub!
+
 ## Preferences
 
 Access via Menu → Preferences
@@ -141,7 +202,7 @@ Enable dependency caching to speed up installations and save bandwidth:
 
 1. Open Preferences
 2. Toggle **"Enable Dependency Caching"** ON
-3. Optionally choose a custom cache location (default: `~/.local/share/winetranslator/dep_cache/`)
+3. Click **"Choose Folder..."** to select cache location (default: `~/.local/share/winetranslator/dep_cache/`)
 4. Dependencies will now be downloaded once and reused across all apps
 
 Benefits:
@@ -262,7 +323,7 @@ Set per-app environment variables for advanced tweaking:
 
 ## Roadmap
 
-### Phase 1: Core Functionality (Done)
+### Phase 1: Core Functionality ✅ DONE
 - [x] Wine runner detection and management
 - [x] Isolated prefix creation
 - [x] Basic GTK4 interface
@@ -270,17 +331,21 @@ Set per-app environment variables for advanced tweaking:
 - [x] One-click launching
 - [x] Automatic dependency detection
 
-### Phase 2: Enhanced Features (In Progress)
+### Phase 2: Enhanced Features ✅ DONE
+- [x] Beautiful dark theme with gradients and animations
 - [x] Preferences dialog
 - [x] Dependency caching system
 - [x] Per-app error logging
 - [x] Dependency profile tracking
-- [x] Tested Apps library with WinSCP
+- [x] Tested Apps library (GitHub-powered)
 - [x] Built-in update system
+- [x] Desktop shortcut creation
+- [x] Right-click to open app directories
+- [x] Container apps for manual installation
+- [x] Automatic .exe detection after installation
 - [ ] Runner version switching per-app
 - [ ] DXVK/VKD3D toggle switches
 - [ ] Application log viewer UI
-- [ ] Desktop shortcut creation
 
 ### Phase 3: Power User Features (Future)
 - [ ] Import from Steam/Lutris/Bottles
