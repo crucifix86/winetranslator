@@ -68,7 +68,8 @@ class AppLauncher:
                 exe_path=app['executable_path'],
                 args=args,
                 working_dir=working_dir,
-                env_vars=env_vars
+                env_vars=env_vars,
+                app_name=app['name']
             )
 
             # Update play statistics
@@ -77,6 +78,9 @@ class AppLauncher:
             return True, f"Launched {app['name']}", process
 
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to launch {app['name']}: {str(e)}", exc_info=True)
             return False, f"Failed to launch application: {str(e)}", None
 
     def add_application(self, name: str, executable_path: str, prefix_id: int,

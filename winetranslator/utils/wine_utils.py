@@ -269,7 +269,7 @@ def create_wine_prefix(wine_path: str, prefix_path: str, arch: str = 'win64') ->
 
 def launch_wine_application(wine_path: str, prefix_path: str, exe_path: str,
                            args: List[str] = None, working_dir: str = None,
-                           env_vars: Dict[str, str] = None) -> subprocess.Popen:
+                           env_vars: Dict[str, str] = None, app_name: str = None) -> subprocess.Popen:
     """
     Launch a Windows application with Wine.
 
@@ -280,10 +280,14 @@ def launch_wine_application(wine_path: str, prefix_path: str, exe_path: str,
         args: Additional arguments for the application.
         working_dir: Working directory for the application.
         env_vars: Additional environment variables.
+        app_name: Name of the application (for logging).
 
     Returns:
         Subprocess Popen object.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     env = os.environ.copy()
     env['WINEPREFIX'] = prefix_path
 
@@ -296,13 +300,44 @@ def launch_wine_application(wine_path: str, prefix_path: str, exe_path: str,
     if args:
         cmd.extend(args)
 
-    # Launch application
-    process = subprocess.Popen(
-        cmd,
-        env=env,
-        cwd=working_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+    # Create app-specific log file
+    log_dir = os.path.join(os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share')), 'winetranslator', 'app_logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    if app_name:
+        # Sanitize app name for filename
+        safe_name = "".join(c for c in app_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        log_file = os.path.join(log_dir, f"{safe_name}.log")
+    else:
+        log_file = os.path.join(log_dir, 'unknown_app.log')
+
+    logger.info(f"Launching app: {app_name or exe_path}")
+    logger.info(f"Command: {' '.join(cmd)}")
+    logger.info(f"Log file: {log_file}")
+
+    # Launch application with output redirected to log file
+    try:
+        log_handle = open(log_file, 'a')
+        log_handle.write(f"\n{'='*60}\n")
+        log_handle.write(f"Launch: {app_name or exe_path}\n")
+        log_handle.write(f"Time: {subprocess.run(['date'], capture_output=True, text=True).stdout.strip()}\n")
+        log_handle.write(f"Command: {' '.join(cmd)}\n")
+        log_handle.write(f"{'='*60}\n\n")
+        log_handle.flush()
+
+        process = subprocess.Popen(
+            cmd,
+            env=env,
+            cwd=working_dir,
+            stdout=log_handle,
+            stderr=subprocess.STDOUT  # Combine stderr with stdout
+        )
+
+        # Store log handle on process object so it can be closed later
+        process._log_handle = log_handle
+
+    except Exception as e:
+        logger.error(f"Failed to launch {app_name or exe_path}: {str(e)}")
+        raise
 
     return process

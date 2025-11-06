@@ -411,6 +411,13 @@ class AddAppDialog(Adw.Window):
                 GLib.idle_add(self._on_add_complete, False, message, progress_window)
                 return
 
+            # Save dependency profiles for future reference
+            if self.detected_deps:
+                logger.info(f"Saving dependency profile for app {app_id}")
+                for dep in self.detected_deps:
+                    self.db.add_app_dependency(app_id, dep, auto_detected=True)
+                logger.info("Dependency profiles saved")
+
             # Install dependencies
             if self.detected_deps and self.dep_manager.is_winetricks_available():
                 logger.info(f"Installing {len(self.detected_deps)} dependencies")
@@ -423,12 +430,17 @@ class AddAppDialog(Adw.Window):
                         current_step += 1
                         logger.info(f"Step {current_step}/{total_steps}: Installing {dep}")
                         GLib.idle_add(update_progress, f"Installing dependency {idx} of {total}: {dep}...", current_step / total_steps)
-                        self.dep_manager.install_dependency(
+                        success, message = self.dep_manager.install_dependency(
                             prefix['path'],
                             dep,
                             prefix.get('runner_path')
                         )
-                        logger.info(f"Finished installing {dep}")
+                        if success:
+                            # Mark as installed in profile
+                            self.db.mark_dependency_installed(app_id, dep)
+                            logger.info(f"Finished installing {dep} successfully")
+                        else:
+                            logger.error(f"Failed to install {dep}: {message}")
                 else:
                     logger.error("Failed to get prefix")
             else:

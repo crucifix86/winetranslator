@@ -107,6 +107,20 @@ class Database:
             )
         """)
 
+        # Dependency profiles table (track what dependencies apps need)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS app_dependencies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                app_id INTEGER NOT NULL,
+                dependency TEXT NOT NULL,
+                auto_detected INTEGER DEFAULT 1,
+                installed INTEGER DEFAULT 0,
+                install_date TEXT,
+                UNIQUE(app_id, dependency),
+                FOREIGN KEY (app_id) REFERENCES applications(id) ON DELETE CASCADE
+            )
+        """)
+
         self.conn.commit()
 
     # Runner operations
@@ -294,6 +308,49 @@ class Database:
             DELETE FROM env_variables WHERE app_id = ? AND key = ?
         """, (app_id, key))
         self.conn.commit()
+
+    # Dependency profile operations
+    def add_app_dependency(self, app_id: int, dependency: str, auto_detected: bool = True):
+        """Add a dependency profile for an application."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT OR IGNORE INTO app_dependencies (app_id, dependency, auto_detected)
+            VALUES (?, ?, ?)
+        """, (app_id, dependency, 1 if auto_detected else 0))
+        self.conn.commit()
+
+    def mark_dependency_installed(self, app_id: int, dependency: str):
+        """Mark a dependency as installed for an application."""
+        from datetime import datetime
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE app_dependencies
+            SET installed = 1, install_date = ?
+            WHERE app_id = ? AND dependency = ?
+        """, (datetime.now().isoformat(), app_id, dependency))
+        self.conn.commit()
+
+    def get_app_dependencies(self, app_id: int) -> List[Dict[str, Any]]:
+        """Get all dependencies for an application."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT * FROM app_dependencies WHERE app_id = ?
+            ORDER BY dependency
+        """, (app_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_dependency_stats(self, dependency: str) -> Dict[str, Any]:
+        """Get statistics for a specific dependency across all apps."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) as app_count,
+                   SUM(installed) as installed_count,
+                   SUM(auto_detected) as auto_detected_count
+            FROM app_dependencies
+            WHERE dependency = ?
+        """, (dependency,))
+        row = cursor.fetchone()
+        return dict(row) if row else {}
 
     def close(self):
         """Close the database connection."""
