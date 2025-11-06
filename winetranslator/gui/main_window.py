@@ -57,9 +57,13 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _build_ui(self):
         """Build the user interface."""
+        # Toast overlay for showing notifications
+        self.toast_overlay = Adw.ToastOverlay()
+        self.set_content(self.toast_overlay)
+
         # Main box container
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.set_content(main_box)
+        self.toast_overlay.set_child(main_box)
 
         # Header bar
         header = Adw.HeaderBar()
@@ -313,6 +317,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Show launching toast
         toast = Adw.Toast.new(f"Launching {app['name']}...")
         toast.set_timeout(2)
+        self.toast_overlay.add_toast(toast)
 
         # Launch in background thread
         def launch_thread():
@@ -330,6 +335,7 @@ class MainWindow(Adw.ApplicationWindow):
         else:
             toast = Adw.Toast.new(f"Failed to launch {app_name}: {message}")
         toast.set_timeout(3)
+        self.toast_overlay.add_toast(toast)
 
     def _remove_application(self, app_id: int):
         """Remove an application."""
@@ -342,6 +348,7 @@ class MainWindow(Adw.ApplicationWindow):
             toast = Adw.Toast.new(f"Error: {message}")
 
         toast.set_timeout(2)
+        self.toast_overlay.add_toast(toast)
 
     def _on_add_app_clicked(self, button):
         """Handle add application button click."""
@@ -389,6 +396,7 @@ class MainWindow(Adw.ApplicationWindow):
             if os.path.exists(desktop_file):
                 toast = Adw.Toast.new(f"Desktop shortcut already exists for {app['name']}")
                 toast.set_timeout(3)
+                self.toast_overlay.add_toast(toast)
                 return
 
             # Create .desktop file content
@@ -414,6 +422,7 @@ Categories=Wine;
 
             toast = Adw.Toast.new(f"Desktop shortcut created for {app['name']}")
             toast.set_timeout(3)
+            self.toast_overlay.add_toast(toast)
 
         except Exception as e:
             logger.error(f"Error creating desktop shortcut: {e}", exc_info=True)

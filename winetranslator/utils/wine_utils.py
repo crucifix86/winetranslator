@@ -267,6 +267,33 @@ def create_wine_prefix(wine_path: str, prefix_path: str, arch: str = 'win64') ->
         return False, f"Error creating Wine prefix: {str(e)}"
 
 
+def _detect_audio_driver() -> str:
+    """
+    Detect the best audio driver to use for Wine.
+
+    Returns:
+        Audio driver name ('pulse' for PulseAudio, 'alsa' for ALSA, or '' for auto).
+    """
+    # Check if PulseAudio is running
+    try:
+        result = subprocess.run(['pactl', 'info'], capture_output=True, timeout=1)
+        if result.returncode == 0:
+            return 'pulse'
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    # Check if PipeWire is running (uses pulseaudio compatibility)
+    try:
+        result = subprocess.run(['pw-cli', 'info'], capture_output=True, timeout=1)
+        if result.returncode == 0:
+            return 'pulse'  # PipeWire supports PulseAudio protocol
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    # Default to ALSA
+    return 'alsa'
+
+
 def launch_wine_application(wine_path: str, prefix_path: str, exe_path: str,
                            args: List[str] = None, working_dir: str = None,
                            env_vars: Dict[str, str] = None, app_name: str = None) -> subprocess.Popen:
@@ -290,6 +317,19 @@ def launch_wine_application(wine_path: str, prefix_path: str, exe_path: str,
 
     env = os.environ.copy()
     env['WINEPREFIX'] = prefix_path
+
+    # Set audio driver (auto-detect PulseAudio/ALSA)
+    audio_driver = _detect_audio_driver()
+    env['WINEAUDIODRIVER'] = audio_driver
+    logger.info(f"Using audio driver: {audio_driver}")
+
+    # Set DirectSound to use native Wine implementation
+    # This helps with audio compatibility in games
+    if 'WINEDLLOVERRIDES' in env:
+        # Append to existing overrides
+        env['WINEDLLOVERRIDES'] = f"{env['WINEDLLOVERRIDES']};dsound=n,b"
+    else:
+        env['WINEDLLOVERRIDES'] = 'dsound=n,b'
 
     # Add custom environment variables
     if env_vars:

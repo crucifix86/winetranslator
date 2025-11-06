@@ -544,19 +544,53 @@ Build artifacts (gitignored):
 - Auto-pulls and reinstalls package
 - Restart option after update
 
-## Next Phase: Portable Games & Folder-Based Apps
+## Current Issue: No Sound in Games 🔊
 
-**Goal:** Support games/apps that come as folders with .exe files (no installer)
+**Status:** Folder-based game installation works perfectly ✅
+**Problem:** Games run but have no audio output
 
-**Examples:**
-- GOG games (extracted)
-- Portable games
-- Cracked games (folders with game.exe)
-- Itch.io games
-- Extracted archives
+**Common Wine Sound Issues:**
+1. Missing Wine audio drivers (PulseAudio/ALSA)
+2. Missing audio libraries (DirectSound, XACT, etc.)
+3. PulseAudio not running or misconfigured
+4. Wine audio configuration not set
 
-**Current Solution:**
-Container apps partially support this, but needs enhancement for gaming use case.
+**Planned Solutions:**
+- [ ] Auto-detect PulseAudio/PipeWire availability
+- [ ] Add audio dependencies to winetricks install
+  - `sound` - Core audio support
+  - `dsound` - DirectSound
+  - `xact` - XACT audio engine (games)
+  - `directmusic` - DirectMusic
+- [ ] Set Wine audio driver automatically (WINEAUDIODRIVER)
+- [ ] Add "Fix Audio" button in app settings
+- [ ] Test with game to verify audio works
+
+**Wine Audio Environment Variables:**
+```bash
+WINEDLLOVERRIDES="dsound=n,b"
+WINEAUDIODRIVER="pulse"  # or "alsa"
+```
+
+**Winetricks Packages for Audio:**
+- `sound` - General audio support
+- `dsound` - DirectSound
+- `xact` - Microsoft XACT audio
+- `directmusic` - DirectMusic support
+- `l3codecx` - MP3 codec
+
+## Next Phase: Portable Games & Folder-Based Apps ✅
+
+**Status:** WORKING! Tested successfully with folder-based game.
+
+**Current Implementation:**
+- ✅ + button → Select .exe from game folder
+- ✅ Creates Wine prefix with dependencies
+- ✅ Right-click to open game folder
+- ✅ Desktop shortcuts work
+- ✅ Launch works perfectly
+
+**No changes needed** - current workflow is good!
 
 **Planned Enhancements:**
 - [ ] Drag-and-drop folder import

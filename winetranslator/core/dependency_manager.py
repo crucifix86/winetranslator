@@ -50,6 +50,15 @@ class DependencyManager:
         'consolas',       # Consolas font
     ]
 
+    # Audio packages
+    AUDIO_DEPS = [
+        'sound',          # Core audio support
+        'dsound',         # DirectSound
+        'xact',           # Microsoft XACT audio engine (games)
+        'directmusic',    # DirectMusic support
+        'l3codecx',       # MP3 codec
+    ]
+
     def __init__(self, db=None):
         """Initialize the dependency manager.
 
@@ -178,10 +187,14 @@ class DependencyManager:
         # Check for Unity games
         if 'unity' in exe_name or self._has_unity_files(exe_dir):
             required.update(['vcrun2019', 'd3dx9', 'dxvk'])
+            # Unity games need audio
+            required.update(['sound', 'dsound', 'xact'])
 
         # Check for Unreal Engine games
         if 'unreal' in exe_name or self._has_unreal_files(exe_dir):
             required.update(['vcrun2019', 'd3dx9', 'dxvk'])
+            # Unreal games need audio
+            required.update(['sound', 'dsound', 'xact'])
 
         # Check for .NET applications
         if self._has_dotnet_files(exe_dir):
@@ -190,6 +203,14 @@ class DependencyManager:
         # Check for XNA games
         if self._has_xna_files(exe_dir):
             required.add('xna40')
+            # XNA games need audio
+            required.update(['sound', 'dsound', 'xact'])
+
+        # Check if this looks like a game (common game patterns)
+        is_game = any(marker in exe_name for marker in ['game', 'launcher', 'setup'])
+        if is_game:
+            # Games typically need audio
+            required.update(['sound', 'dsound'])
 
         # Default: add essentials if nothing specific detected
         if not required:
@@ -292,6 +313,15 @@ class DependencyManager:
         deps.extend([
             {'name': 'quartz', 'category': 'Media', 'description': 'QuickTime Alternative'},
             {'name': 'wmp10', 'category': 'Media', 'description': 'Windows Media Player 10'},
+        ])
+
+        # Audio
+        deps.extend([
+            {'name': 'sound', 'category': 'Audio', 'description': 'Core audio support'},
+            {'name': 'dsound', 'category': 'Audio', 'description': 'DirectSound'},
+            {'name': 'xact', 'category': 'Audio', 'description': 'Microsoft XACT audio engine'},
+            {'name': 'directmusic', 'category': 'Audio', 'description': 'DirectMusic support'},
+            {'name': 'l3codecx', 'category': 'Audio', 'description': 'MP3 codec'},
         ])
 
         return deps
