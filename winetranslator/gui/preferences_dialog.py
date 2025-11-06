@@ -5,7 +5,7 @@ Preferences Dialog for WineTranslator.
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw
+from gi.repository import Gtk, Adw, Gio, GLib
 import os
 import logging
 
@@ -124,21 +124,30 @@ class PreferencesDialog(Adw.PreferencesWindow):
 
     def _on_choose_cache_location(self, button):
         """Handle choose cache location button click."""
+        logger.info("Choose cache location button clicked")
+
         dialog = Gtk.FileDialog()
         dialog.set_title("Select Cache Location")
 
         # Set initial folder
         current_path = self.cache_path_label.get_text()
+        logger.info(f"Current cache path: {current_path}")
+
         if current_path and os.path.exists(current_path):
             initial_folder = Gio.File.new_for_path(current_path)
             dialog.set_initial_folder(initial_folder)
+            logger.info(f"Set initial folder: {current_path}")
 
+        logger.info("Opening folder selection dialog")
         dialog.select_folder(self, None, self._on_cache_location_selected)
 
     def _on_cache_location_selected(self, dialog, result):
         """Handle cache location selection."""
         try:
+            logger.info("Folder selection callback triggered")
             folder = dialog.select_folder_finish(result)
+            logger.info(f"Folder selected: {folder}")
+
             if folder:
                 cache_path = folder.get_path()
                 logger.info(f"Cache location selected: {cache_path}")
@@ -149,7 +158,15 @@ class PreferencesDialog(Adw.PreferencesWindow):
                 # Save to database
                 self.db.set_setting('cache_path', cache_path)
                 self.cache_path_label.set_text(cache_path)
+                logger.info(f"Cache path saved to database: {cache_path}")
+            else:
+                logger.warning("No folder selected (folder is None)")
 
+        except GLib.Error as e:
+            # GTK dismissal is not an error
+            if e.code == 2:  # Dismissed
+                logger.info("Folder selection dismissed by user")
+            else:
+                logger.error(f"GLib error selecting cache location: {e}", exc_info=True)
         except Exception as e:
-            if 'GTK_DIALOG_ERROR_DISMISSED' not in str(e):
-                logger.error(f"Error selecting cache location: {e}")
+            logger.error(f"Error selecting cache location: {e}", exc_info=True)
