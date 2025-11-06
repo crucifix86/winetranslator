@@ -14,6 +14,7 @@ A simple, easy-to-use Wine GUI for running Windows applications on Linux with au
 - **Audio support** - Automatic audio configuration (PulseAudio/PipeWire/ALSA detection)
 - **Memory management** - Large Address Aware setting for big game installers (FitGirl repacks)
 - **Smart removal** - Choose to keep files or delete them when removing apps
+- **Custom storage location** - Store Wine prefixes on any drive (perfect for multi-drive setups)
 - **Isolated Wine prefixes** - Each application gets its own clean environment
 - **Multiple Wine versions** - Support for Wine, Wine-Staging, Proton, and custom builds
 - **Automatic dependency detection** - Detects Unity, Unreal, .NET, XNA games and apps
@@ -296,6 +297,27 @@ This setting is especially important for:
 - Modded applications with memory-intensive operations
 
 **Note**: This is a Wine virtual memory limit, not your physical RAM. Even with plenty of system RAM, Wine's 32-bit processes have default memory limits that can cause crashes.
+
+### Storage Location
+
+Choose where Wine prefixes are stored - perfect for multi-drive setups:
+
+1. Open Preferences
+2. Scroll to **"Storage Location"**
+3. Click **"Choose Folder..."**
+4. Select a directory on your preferred drive
+5. All new prefixes will be stored there
+
+**Use cases:**
+- **Multiple drives**: Store large games on bigger secondary drive (e.g., 500GB main + 2TB secondary)
+- **Fast storage**: Put prefixes on SSD for better performance
+- **Backups**: Easier to backup when all prefixes are in one custom location
+- **Network storage**: Store prefixes on NAS (with good network speed)
+
+**Important notes:**
+- Only affects **new** Wine prefixes - existing prefixes stay where they are
+- Default location: `~/.local/share/winetranslator/prefixes/`
+- Make sure the drive has enough space for large game installations (50GB+ for AAA games)
 
 ## Updating WineTranslator
 
