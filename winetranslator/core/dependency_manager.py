@@ -75,8 +75,14 @@ class DependencyManager:
         Returns:
             Tuple of (success, message)
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         if not self.is_winetricks_available():
+            logger.error("winetricks is not installed")
             return False, "winetricks is not installed"
+
+        logger.info(f"Starting installation of {dependency} in prefix {prefix_path}")
 
         env = os.environ.copy()
         env['WINEPREFIX'] = prefix_path
@@ -84,6 +90,7 @@ class DependencyManager:
             env['WINE'] = wine_path
 
         try:
+            logger.debug(f"Running winetricks command: {self.winetricks_path} -q {dependency}")
             result = subprocess.run(
                 [self.winetricks_path, '-q', dependency],
                 env=env,
@@ -93,9 +100,11 @@ class DependencyManager:
             )
 
             if result.returncode == 0:
+                logger.info(f"Successfully installed {dependency}")
                 return True, f"Successfully installed {dependency}"
             else:
                 error = result.stderr or result.stdout
+                logger.error(f"Failed to install {dependency}: {error}")
                 return False, f"Failed to install {dependency}: {error}"
 
         except subprocess.TimeoutExpired:
