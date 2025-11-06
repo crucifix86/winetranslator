@@ -12,6 +12,7 @@ dependencies = [
 
 [project.scripts]
 winetranslator = "winetranslator.main:main"
+winetranslator-launch = "winetranslator.launcher:launch"
 
 [build-system]
 requires = ["setuptools>=61.0"]

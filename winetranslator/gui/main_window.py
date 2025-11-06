@@ -250,6 +250,7 @@ class MainWindow(Adw.ApplicationWindow):
         dialog.set_body(f"Prefix: {app['prefix_name']}\nRunner: {app['runner_name']}")
 
         dialog.add_response("cancel", "Cancel")
+        dialog.add_response("shortcut", "Create Desktop Shortcut")
         dialog.add_response("launch", "Launch")
         dialog.add_response("remove", "Remove")
         dialog.set_response_appearance("launch", Adw.ResponseAppearance.SUGGESTED)
@@ -264,6 +265,8 @@ class MainWindow(Adw.ApplicationWindow):
             self._launch_application(app_id)
         elif response == "remove":
             self._remove_application(app_id)
+        elif response == "shortcut":
+            self._create_desktop_shortcut(app_id)
 
     def _launch_application(self, app_id: int):
         """Launch an application."""
@@ -329,3 +332,53 @@ class MainWindow(Adw.ApplicationWindow):
         dialog.set_body(message)
         dialog.add_response("ok", "OK")
         dialog.present()
+
+    def _create_desktop_shortcut(self, app_id: int):
+        """Create a desktop shortcut for an application."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        try:
+            # Desktop entry directory
+            desktop_dir = os.path.join(os.path.expanduser('~/.local/share/applications'))
+            os.makedirs(desktop_dir, exist_ok=True)
+
+            # Sanitize app name for filename
+            safe_name = "".join(c for c in app['name'] if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_name = safe_name.replace(' ', '-')
+            desktop_file = os.path.join(desktop_dir, f'winetranslator-{safe_name}.desktop')
+
+            # Check if shortcut already exists
+            if os.path.exists(desktop_file):
+                toast = Adw.Toast.new(f"Desktop shortcut already exists for {app['name']}")
+                toast.set_timeout(3)
+                return
+
+            # Create .desktop file content
+            desktop_content = f"""[Desktop Entry]
+Version=1.0
+Type=Application
+Name={app['name']}
+Comment=Launch {app['name']} with WineTranslator
+Exec=winetranslator-launch {app_id}
+Icon=application-x-executable
+Terminal=false
+Categories=Wine;
+"""
+
+            # Write .desktop file
+            with open(desktop_file, 'w') as f:
+                f.write(desktop_content)
+
+            # Make executable
+            os.chmod(desktop_file, 0o755)
+
+            logger.info(f"Created desktop shortcut: {desktop_file}")
+
+            toast = Adw.Toast.new(f"Desktop shortcut created for {app['name']}")
+            toast.set_timeout(3)
+
+        except Exception as e:
+            logger.error(f"Error creating desktop shortcut: {e}", exc_info=True)
+            self._show_error_dialog("Error", f"Failed to create desktop shortcut: {str(e)}")
