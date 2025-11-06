@@ -23,6 +23,18 @@
       "dependencies": ["vcrun2019", "d3dx9", "corefonts"],
       "tested_date": "2025-11-06",
       "working": true
+    },
+    {
+      "name": "PuTTY",
+      "version": "latest",
+      "description": "Free SSH and Telnet client for Windows",
+      "installation_type": "download",
+      "url": "https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe",
+      "category": "Utilities",
+      "install_notes": "✅ Works perfectly out of the box - no special configuration needed.",
+      "dependencies": ["vcrun2019", "corefonts"],
+      "tested_date": "2025-11-06",
+      "working": true
     }
   ]
 }
