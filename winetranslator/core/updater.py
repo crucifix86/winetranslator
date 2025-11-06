@@ -154,6 +154,7 @@ class Updater:
     def has_uncommitted_changes(self) -> bool:
         """
         Check if there are uncommitted changes in the repository.
+        Only checks for modified/staged tracked files, ignores untracked files.
 
         Returns:
             True if there are uncommitted changes.
@@ -171,7 +172,13 @@ class Updater:
             )
 
             if result.returncode == 0:
-                return len(result.stdout.strip()) > 0
+                # Only count modified/staged files (M, A, D, R, C, U)
+                # Ignore untracked files (??)
+                lines = result.stdout.strip().split('\n')
+                for line in lines:
+                    if line and not line.startswith('??'):
+                        return True
+                return False
 
         except Exception:
             pass
