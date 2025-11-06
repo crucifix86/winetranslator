@@ -225,13 +225,24 @@ class Updater:
                 return True, "Already up to date"
 
             # Reinstall the package
+            # Try with --break-system-packages for newer Python versions
             install_result = subprocess.run(
-                ['pip3', 'install', '--user', '-e', '.'],
+                ['pip3', 'install', '--user', '--break-system-packages', '-e', '.'],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
                 timeout=60
             )
+
+            # If that fails, try without --break-system-packages
+            if install_result.returncode != 0 and 'unrecognized arguments' in install_result.stderr:
+                install_result = subprocess.run(
+                    ['pip3', 'install', '--user', '-e', '.'],
+                    cwd=self.repo_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
 
             if install_result.returncode != 0:
                 return False, f"Updated code but failed to reinstall package: {install_result.stderr}"
