@@ -7,14 +7,18 @@ Easy-to-use wizard for adding Windows applications.
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GLib, GObject
+from gi.repository import Gtk, Adw, GLib, GObject, Gio
 import os
 import threading
+import logging
 
 from ..database.db import Database
 from ..core.runner_manager import RunnerManager
 from ..core.prefix_manager import PrefixManager
 from ..core.dependency_manager import DependencyManager
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 class AddAppDialog(Adw.Window):

@@ -8,11 +8,16 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, GLib
 import sys
 import threading
+import logging
 
 from .database.db import Database
 from .gui.main_window import MainWindow
 from .core.updater import Updater
 from .utils.first_run import FirstRunChecker
+from .utils.logger import setup_logging
+
+# Set up logging
+logger = setup_logging()
 
 
 class WineTranslatorApp(Adw.Application):
@@ -28,20 +33,27 @@ class WineTranslatorApp(Adw.Application):
 
     def do_activate(self):
         """Activate the application."""
+        logger.info("Application activated")
+
         # Check dependencies on first run
         checker = FirstRunChecker()
         all_ok, missing = checker.check_all()
 
         if not all_ok:
+            logger.warning(f"Missing dependencies: {missing}")
             # Show dependency warning dialog
             self._show_dependency_warning(checker)
             return
 
+        logger.info("All dependencies present")
+
         # Initialize database
         if not self.db:
+            logger.info("Initializing database")
             self.db = Database()
 
         # Create main window
+        logger.info("Creating main window")
         window = MainWindow(self, self.db)
         window.present()
 

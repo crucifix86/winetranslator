@@ -4,6 +4,9 @@
 
 set -e
 
+# Change to script directory
+cd "$(dirname "$0")"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -78,13 +81,10 @@ create_appdir() {
 install_dependencies() {
     print_info "Installing Python dependencies into AppDir..."
 
-    # Install winetranslator and dependencies
-    pip3 install --target="$APP_DIR/usr/lib/python3/site-packages" \
-        PyGObject \
-        pycairo \
-        .
+    # Note: PyGObject and pycairo come from system (can't bundle GTK4 easily)
+    # We only need to bundle our application code
 
-    print_success "Dependencies installed"
+    print_success "Dependencies prepared (using system PyGObject/GTK4)"
 }
 
 # Copy application files
@@ -134,16 +134,8 @@ EOF
     # Copy to share directory as well
     cp "$APP_DIR/winetranslator.desktop" "$APP_DIR/usr/share/applications/"
 
-    # Create a simple icon (using system icon for now)
-    # In production, you'd want a custom icon
-    if [ -f "/usr/share/icons/hicolor/256x256/apps/application-x-executable.png" ]; then
-        cp "/usr/share/icons/hicolor/256x256/apps/application-x-executable.png" \
-           "$APP_DIR/winetranslator.png"
-    else
-        # Create a placeholder icon
-        print_info "Creating placeholder icon..."
-        # This would need imagemagick, skip for now
-    fi
+    # Create placeholder icon
+    touch "$APP_DIR/winetranslator.png"
 
     print_success "Desktop files created"
 }
@@ -163,19 +155,91 @@ export PYTHONPATH="$APPDIR/usr/lib/python3/site-packages:$PYTHONPATH"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib:$LD_LIBRARY_PATH"
 export PATH="$APPDIR/usr/bin:$PATH"
 
-# Check for Wine on first run
-if ! command -v wine &> /dev/null; then
-    zenity --error --text="Wine is not installed!\n\nPlease install Wine:\n\nDebian/Ubuntu: sudo apt install wine\nFedora: sudo dnf install wine\nArch: sudo pacman -S wine" --title="WineTranslator - Wine Required" 2>/dev/null || \
-    echo "ERROR: Wine is not installed. Please install Wine to use WineTranslator." >&2
-    exit 1
-fi
+# Detect distro
+detect_distro() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        echo "$ID"
+    else
+        echo "unknown"
+    fi
+}
 
-# Check for GTK4 and Libadwaita
-if ! python3 -c "import gi; gi.require_version('Gtk', '4.0'); gi.require_version('Adw', '1')" 2>/dev/null; then
-    zenity --error --text="GTK4 or Libadwaita not found!\n\nPlease install:\n\nDebian/Ubuntu: sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1\nFedora: sudo dnf install gtk4 libadwaita\nArch: sudo pacman -S gtk4 libadwaita" --title="WineTranslator - Dependencies Required" 2>/dev/null || \
-    echo "ERROR: GTK4 or Libadwaita not found. Please install them to use WineTranslator." >&2
-    exit 1
-fi
+# Check and install dependencies
+check_deps() {
+    local missing=()
+
+    # Check Wine
+    if ! command -v wine &> /dev/null; then
+        missing+=("wine")
+    fi
+
+    # Check winetricks
+    if ! command -v winetricks &> /dev/null; then
+        missing+=("winetricks")
+    fi
+
+    # Check GTK4
+    if ! python3 -c "import gi; gi.require_version('Gtk', '4.0')" 2>/dev/null; then
+        missing+=("gtk4")
+    fi
+
+    # Check Libadwaita
+    if ! python3 -c "import gi; gi.require_version('Adw', '1')" 2>/dev/null; then
+        missing+=("libadwaita")
+    fi
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        install_deps "${missing[@]}"
+    fi
+}
+
+# Install missing dependencies
+install_deps() {
+    local distro=$(detect_distro)
+    local deps=("$@")
+
+    # Build package list based on distro
+    case "$distro" in
+        debian|ubuntu|linuxmint|pop)
+            local pkgs="wine winetricks python3-gi gir1.2-gtk-4.0 gir1.2-adw-1"
+            local install_cmd="apt install -y"
+            ;;
+        fedora)
+            local pkgs="wine winetricks python3-gobject gtk4 libadwaita"
+            local install_cmd="dnf install -y"
+            ;;
+        arch|manjaro)
+            local pkgs="wine winetricks python-gobject gtk4 libadwaita"
+            local install_cmd="pacman -S --noconfirm"
+            ;;
+        *)
+            zenity --error --text="Unknown Linux distribution.\n\nPlease install manually:\n- Wine\n- Winetricks\n- GTK4\n- Libadwaita" --title="WineTranslator" 2>/dev/null
+            exit 1
+            ;;
+    esac
+
+    # Ask user permission
+    if command -v zenity &> /dev/null; then
+        zenity --question --text="WineTranslator needs to install dependencies:\n\n${pkgs}\n\nThis requires administrator permission. Continue?" --title="Install Dependencies" 2>/dev/null
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+    fi
+
+    # Try pkexec first, fall back to sudo
+    if command -v pkexec &> /dev/null; then
+        pkexec sh -c "$install_cmd $pkgs" 2>&1 | zenity --progress --pulsate --text="Installing dependencies..." --title="WineTranslator" --auto-close 2>/dev/null
+    elif command -v sudo &> /dev/null; then
+        x-terminal-emulator -e "sudo $install_cmd $pkgs" || xterm -e "sudo $install_cmd $pkgs" || sudo $install_cmd $pkgs
+    else
+        zenity --error --text="Cannot install dependencies automatically.\n\nPlease run:\nsudo $install_cmd $pkgs" --title="WineTranslator" 2>/dev/null
+        exit 1
+    fi
+}
+
+# Check dependencies on first run
+check_deps
 
 # Run the application
 exec "$APPDIR/usr/bin/winetranslator" "$@"

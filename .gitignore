@@ -47,3 +47,8 @@ prefixes/
 
 # Logs
 *.log
+
+# AppImage build artifacts
+WineTranslator.AppDir/
+WineTranslator-x86_64.AppImage
+appimagetool-x86_64.AppImage

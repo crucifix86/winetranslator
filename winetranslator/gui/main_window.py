@@ -10,6 +10,7 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, GLib, Gio
 import os
 import threading
+import logging
 from typing import Optional
 
 from ..database.db import Database
@@ -18,6 +19,9 @@ from ..core.prefix_manager import PrefixManager
 from ..core.app_launcher import AppLauncher
 from ..core.dependency_manager import DependencyManager
 from ..core.updater import Updater
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -277,10 +281,17 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_add_app_clicked(self, button):
         """Handle add application button click."""
-        from .add_app_dialog import AddAppDialog
-        dialog = AddAppDialog(self, self.db, self.runner_manager, self.prefix_manager, self.dep_manager)
-        dialog.connect("app-added", self._on_app_added)
-        dialog.present()
+        logger.info("Add application button clicked")
+        try:
+            from .add_app_dialog import AddAppDialog
+            logger.info("Creating AddAppDialog")
+            dialog = AddAppDialog(self, self.db, self.runner_manager, self.prefix_manager, self.dep_manager)
+            dialog.connect("app-added", self._on_app_added)
+            logger.info("Presenting AddAppDialog")
+            dialog.present()
+        except Exception as e:
+            logger.error(f"Error opening add app dialog: {e}", exc_info=True)
+            self._show_error_dialog("Error", f"Failed to open add application dialog: {str(e)}")
 
     def _on_app_added(self, dialog):
         """Handle application added event."""
