@@ -1,6 +1,6 @@
 [project]
 name = "winetranslator"
-version = "0.1.0"
+version = "0.4.0"
 description = "A simple, easy-to-use Wine GUI for running Windows applications on Linux"
 authors = [{name = "WineTranslator Team"}]
 license = {text = "GPL-3.0"}
