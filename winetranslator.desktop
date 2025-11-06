@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=WineTranslator
+Comment=Run Windows applications on Linux with ease
+Exec=winetranslator
+Icon=application-x-executable
+Terminal=false
+Categories=Game;Utility;
+Keywords=wine;windows;emulator;compatibility;

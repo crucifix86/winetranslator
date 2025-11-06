@@ -1,0 +1,18 @@
+[project]
+name = "winetranslator"
+version = "0.1.0"
+description = "A simple, easy-to-use Wine GUI for running Windows applications on Linux"
+authors = [{name = "WineTranslator Team"}]
+license = {text = "GPL-3.0"}
+requires-python = ">=3.10"
+dependencies = [
+    "PyGObject>=3.42.0",
+    "pycairo>=1.20.0",
+]
+
+[project.scripts]
+winetranslator = "winetranslator.main:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
