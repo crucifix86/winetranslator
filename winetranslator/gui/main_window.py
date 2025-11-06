@@ -388,9 +388,14 @@ class MainWindow(Adw.ApplicationWindow):
                 GLib.idle_add(self._on_controller_enabled, False, message, progress_dialog)
                 return
 
-            # Set environment variable for SDL controller support
+            # Set environment variables for controller support
+            # SDL variables for SDL-based games
             self.db.set_env_var(app_id, 'SDL_GAMECONTROLLERCONFIG', 'auto')
             self.db.set_env_var(app_id, 'SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS', '1')
+
+            # Wine-specific joystick/HID support (critical for Wine 8.0+)
+            self.db.set_env_var(app_id, 'WINE_ENABLE_GAMEPAD', '1')
+            self.db.set_env_var(app_id, 'WINE_ENABLE_HIDRAW', '1')
 
             # Add DLL overrides for XInput to use native DLLs
             # This is critical - Wine's built-in XInput doesn't support controllers properly
