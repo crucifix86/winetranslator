@@ -202,6 +202,12 @@ class MainWindow(Adw.ApplicationWindow):
         button.set_has_frame(False)
         button.connect("clicked", self._on_app_card_clicked, app['id'])
 
+        # Add right-click handler
+        right_click = Gtk.GestureClick.new()
+        right_click.set_button(3)  # Right mouse button
+        right_click.connect("pressed", self._on_app_card_right_clicked, app['id'])
+        button.add_controller(right_click)
+
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         button_box.set_spacing(8)
         button_box.set_margin_top(12)
@@ -244,6 +250,30 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle application card click."""
         # Show app details dialog with launch button
         self._show_app_dialog(app_id)
+
+    def _on_app_card_right_clicked(self, gesture, n_press, x, y, app_id: int):
+        """Handle application card right-click."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        # Get the executable directory
+        exe_path = app.get('executable_path', '')
+        if exe_path and os.path.exists(exe_path):
+            exe_dir = os.path.dirname(exe_path)
+            self._open_directory(exe_dir)
+        else:
+            logger.warning(f"Executable path not found for app {app_id}")
+
+    def _open_directory(self, directory: str):
+        """Open a directory in the file manager."""
+        try:
+            import subprocess
+            subprocess.Popen(['xdg-open', directory])
+            logger.info(f"Opened directory: {directory}")
+        except Exception as e:
+            logger.error(f"Error opening directory: {e}", exc_info=True)
+            self._show_error_dialog("Error", f"Failed to open directory: {str(e)}")
 
     def _show_app_dialog(self, app_id: int):
         """Show application details dialog."""

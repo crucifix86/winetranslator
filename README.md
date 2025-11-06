@@ -4,8 +4,10 @@ A simple, easy-to-use Wine GUI for running Windows applications on Linux with au
 
 ## Features
 
-- **Easy-to-use GTK4 interface** - Modern, native Linux design using Libadwaita
+- **Beautiful dark theme** - Modern gradient UI with smooth animations and hover effects
+- **Easy-to-use GTK4 interface** - Native Linux design using Libadwaita
 - **Tested Apps Library** - Curated list of Windows apps known to work perfectly with Wine
+- **Desktop shortcuts** - Create native Linux shortcuts that launch apps directly
 - **Isolated Wine prefixes** - Each application gets its own clean environment
 - **Multiple Wine versions** - Support for Wine, Wine-Staging, Proton, and custom builds
 - **Automatic dependency detection** - Detects Unity, Unreal, .NET, XNA games and apps
@@ -16,6 +18,7 @@ A simple, easy-to-use Wine GUI for running Windows applications on Linux with au
 - **One-click launching** - Simple application library with launch statistics
 - **Smart runner detection** - Automatically finds Wine installations on your system
 - **Built-in updater** - Update WineTranslator from within the app
+- **GitHub-powered tested apps** - Tested apps list updates automatically from GitHub
 
 ## Why WineTranslator?
 

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "last_updated": "2025-11-06",
   "categories": [
     "All",
@@ -15,6 +15,7 @@
       "name": "WinSCP",
       "version": "6.5.4",
       "description": "Free SFTP, SCP, S3 and FTP client for Windows",
+      "installation_type": "download",
       "url": "https://winscp.net/download/WinSCP-6.5.4-Setup.exe",
       "icon_url": "https://winscp.net/eng/data/media/icons/winscp.png",
       "category": "File Transfer",

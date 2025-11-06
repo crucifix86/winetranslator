@@ -189,7 +189,12 @@ class TestedAppsView(Gtk.Box):
             install_button.set_sensitive(False)
             install_button.set_valign(Gtk.Align.CENTER)
         else:
-            install_button = Gtk.Button(label="Download & Install")
+            # Check installation type
+            installation_type = app.get('installation_type', 'download')
+            if installation_type == 'container':
+                install_button = Gtk.Button(label="Setup Container")
+            else:
+                install_button = Gtk.Button(label="Download & Install")
             install_button.add_css_class("suggested-action")
             install_button.set_valign(Gtk.Align.CENTER)
             install_button.connect("clicked", self._on_install_clicked, app)
@@ -315,6 +320,15 @@ class TestedAppsView(Gtk.Box):
 
     def _on_install_clicked(self, button, app):
         """Handle install button click."""
+        installation_type = app.get('installation_type', 'download')
+
+        if installation_type == 'container':
+            self._setup_container_app(app)
+        else:
+            self._download_and_install_app(app)
+
+    def _download_and_install_app(self, app):
+        """Download and install a regular app."""
         logger.info(f"Installing tested app: {app['name']}")
 
         # Show progress dialog
@@ -414,6 +428,122 @@ class TestedAppsView(Gtk.Box):
         dialog = Adw.MessageDialog.new(self.get_root())
         dialog.set_heading("Installation Failed")
         dialog.set_body(error_msg)
+        dialog.add_response("ok", "OK")
+        dialog.present()
+
+        return False
+
+    def _setup_container_app(self, app):
+        """Setup a container app (manual installation)."""
+        logger.info(f"Setting up container for: {app['name']}")
+
+        # Show progress dialog
+        progress_dialog = Adw.MessageDialog.new(self.get_root())
+        progress_dialog.set_heading(f"Setting up {app['name']}")
+        progress_dialog.set_body("Creating Wine prefix and container...")
+        progress_dialog.present()
+
+        def setup_thread():
+            try:
+                # Get or create default prefix
+                GLib.idle_add(lambda: progress_dialog.set_body("Setting up Wine prefix..."))
+                runner = self.runner_manager.get_default_runner()
+                if not runner:
+                    GLib.idle_add(self._on_install_error, "No Wine runner available", progress_dialog)
+                    return
+
+                success, msg, prefix_id = self.prefix_manager.get_or_create_default_prefix(runner['id'])
+                if not success:
+                    GLib.idle_add(self._on_install_error, f"Failed to create prefix: {msg}", progress_dialog)
+                    return
+
+                # Create container directory
+                prefix = self.prefix_manager.get_prefix(prefix_id)
+                if not prefix:
+                    GLib.idle_add(self._on_install_error, "Failed to get prefix", progress_dialog)
+                    return
+
+                container_base = os.path.join(prefix['path'], 'drive_c', 'winetranslator_containers')
+                os.makedirs(container_base, exist_ok=True)
+
+                # Sanitize app name for folder
+                safe_name = "".join(c for c in app['name'] if c.isalnum() or c in (' ', '-', '_')).strip()
+                container_path = os.path.join(container_base, safe_name)
+                os.makedirs(container_path, exist_ok=True)
+
+                logger.info(f"Created container at: {container_path}")
+
+                # Install dependencies if specified
+                if app.get('dependencies') and self.dep_manager.is_winetricks_available():
+                    total = len(app['dependencies'])
+                    for idx, dep in enumerate(app['dependencies'], 1):
+                        GLib.idle_add(lambda d=dep, i=idx, t=total: progress_dialog.set_body(
+                            f"Installing dependency {i} of {t}: {d}..."
+                        ))
+                        success, msg = self.dep_manager.install_dependency(
+                            prefix['path'],
+                            dep,
+                            prefix.get('runner_path')
+                        )
+
+                # Create README file in container
+                readme_path = os.path.join(container_path, 'README.txt')
+                instructions = app.get('container_instructions', 'Place the application files in this folder.')
+                with open(readme_path, 'w') as f:
+                    f.write(f"WineTranslator Container: {app['name']}\n")
+                    f.write(f"{'=' * 50}\n\n")
+                    f.write(f"{instructions}\n\n")
+                    f.write(f"After placing files here, add the .exe to WineTranslator using the + button.\n")
+
+                # Add placeholder to database
+                from ..core.app_launcher import AppLauncher
+                launcher = AppLauncher(self.db)
+
+                # Use container path as executable for now
+                placeholder_exe = os.path.join(container_path, 'PLACE_FILES_HERE.txt')
+                with open(placeholder_exe, 'w') as f:
+                    f.write("Place your application files in this folder")
+
+                success, message, app_id = launcher.add_application(
+                    name=f"{app['name']} (Container)",
+                    executable_path=container_path,  # Store container path
+                    prefix_id=prefix_id,
+                    description=f"{app['description']} - Manual installation container"
+                )
+
+                # Open container folder
+                GLib.idle_add(self._open_container_folder, app['name'], container_path, progress_dialog)
+
+            except Exception as e:
+                logger.error(f"Error setting up container: {e}", exc_info=True)
+                GLib.idle_add(self._on_install_error, str(e), progress_dialog)
+
+        thread = threading.Thread(target=setup_thread, daemon=True)
+        thread.start()
+
+    def _open_container_folder(self, app_name, container_path, progress_dialog):
+        """Open the container folder and show instructions."""
+        progress_dialog.close()
+
+        # Open folder in file manager
+        try:
+            import subprocess
+            subprocess.Popen(['xdg-open', container_path])
+        except Exception as e:
+            logger.error(f"Error opening folder: {e}")
+
+        # Show instructions dialog
+        dialog = Adw.MessageDialog.new(self.get_root())
+        dialog.set_heading(f"{app_name} Container Ready")
+        dialog.set_body(
+            f"Container created successfully!\n\n"
+            f"📁 The folder has been opened in your file manager.\n\n"
+            f"Next steps:\n"
+            f"1. Place the {app_name} files in the opened folder\n"
+            f"2. Right-click the container in Library to open the folder\n"
+            f"3. Once files are placed, use the + button to add the .exe\n\n"
+            f"The Wine prefix and dependencies have been set up automatically."
+        )
         dialog.add_response("ok", "OK")
         dialog.present()
 
