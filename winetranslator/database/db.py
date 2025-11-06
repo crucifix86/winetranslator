@@ -265,6 +265,30 @@ class Database:
         cursor.execute("DELETE FROM applications WHERE id = ?", (app_id,))
         self.conn.commit()
 
+    def update_application(self, app_id: int, **kwargs):
+        """Update application fields.
+
+        Args:
+            app_id: Application ID
+            **kwargs: Fields to update (e.g., arguments="...", working_directory="...")
+        """
+        if not kwargs:
+            return
+
+        # Build UPDATE query dynamically
+        fields = []
+        values = []
+        for key, value in kwargs.items():
+            fields.append(f"{key} = ?")
+            values.append(value)
+
+        values.append(app_id)
+        query = f"UPDATE applications SET {', '.join(fields)} WHERE id = ?"
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, values)
+        self.conn.commit()
+
     # Configuration operations
     def set_config(self, app_id: int, key: str, value: str):
         """Set a configuration value for an application."""

@@ -7,7 +7,8 @@ GTK4 application window with application library and management interface.
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GLib, Gio
+gi.require_version('Gdk', '4.0')
+from gi.repository import Gtk, Adw, GLib, Gio, Gdk
 import os
 import threading
 import logging
@@ -45,6 +46,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.dep_manager = DependencyManager(db)
         self.updater = Updater()
 
+        # Setup context menu actions
+        self._setup_context_actions()
+
         # Window properties
         self.set_title("WineTranslator")
         self.set_default_size(1000, 700)
@@ -54,6 +58,86 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Initialize system
         GLib.idle_add(self._initialize_system)
+
+    def _setup_context_actions(self):
+        """Setup actions for context menu."""
+        # Get the application
+        app = self.get_application()
+
+        # Open directory action (with parameter)
+        open_dir_action = Gio.SimpleAction.new("open-directory", GLib.VariantType.new("s"))
+        open_dir_action.connect("activate", self._on_open_directory_action)
+        app.add_action(open_dir_action)
+
+        # Edit arguments action (with parameter)
+        edit_args_action = Gio.SimpleAction.new("edit-arguments", GLib.VariantType.new("s"))
+        edit_args_action.connect("activate", self._on_edit_arguments_action)
+        app.add_action(edit_args_action)
+
+    def _on_open_directory_action(self, action, parameter):
+        """Handle open directory action from context menu."""
+        app_id = int(parameter.get_string())
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        exe_path = app.get('executable_path', '')
+        if exe_path and os.path.exists(exe_path):
+            exe_dir = os.path.dirname(exe_path)
+            self._open_directory(exe_dir)
+        else:
+            logger.warning(f"Executable path not found for app {app_id}")
+
+    def _on_edit_arguments_action(self, action, parameter):
+        """Handle edit arguments action from context menu."""
+        app_id = int(parameter.get_string())
+        self._show_edit_arguments_dialog(app_id)
+
+    def _show_edit_arguments_dialog(self, app_id: int):
+        """Show dialog to edit launch arguments."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        # Create dialog
+        dialog = Adw.MessageDialog.new(self)
+        dialog.set_heading(f"Edit Launch Arguments - {app['name']}")
+        dialog.set_body("Enter command-line arguments to pass to the application when launching.\nExample: -console -windowed -fullscreen")
+
+        # Add response buttons
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("save", "Save")
+        dialog.set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED)
+
+        # Create entry for arguments
+        entry_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        entry_box.set_margin_start(12)
+        entry_box.set_margin_end(12)
+        entry_box.set_margin_top(12)
+        entry_box.set_margin_bottom(12)
+
+        entry = Gtk.Entry()
+        entry.set_placeholder_text("Launch arguments...")
+        current_args = app.get('arguments', '') or ''
+        entry.set_text(current_args)
+        entry_box.append(entry)
+
+        dialog.set_extra_child(entry_box)
+
+        dialog.connect("response", self._on_edit_arguments_response, app_id, entry)
+        dialog.present()
+
+    def _on_edit_arguments_response(self, dialog, response, app_id: int, entry: Gtk.Entry):
+        """Handle edit arguments dialog response."""
+        if response == "save":
+            arguments = entry.get_text().strip()
+            # Update in database
+            self.db.update_application(app_id, arguments=arguments)
+            logger.info(f"Updated launch arguments for app {app_id}: {arguments}")
+
+            toast = Adw.Toast.new("Launch arguments updated")
+            toast.set_timeout(2)
+            self.toast_overlay.add_toast(toast)
 
     def _build_ui(self):
         """Build the user interface."""
@@ -256,18 +340,30 @@ class MainWindow(Adw.ApplicationWindow):
         self._show_app_dialog(app_id)
 
     def _on_app_card_right_clicked(self, gesture, n_press, x, y, app_id: int):
-        """Handle application card right-click."""
+        """Handle application card right-click - show context menu."""
         app = self.app_launcher.get_application(app_id)
         if not app:
             return
 
-        # Get the executable directory
-        exe_path = app.get('executable_path', '')
-        if exe_path and os.path.exists(exe_path):
-            exe_dir = os.path.dirname(exe_path)
-            self._open_directory(exe_dir)
-        else:
-            logger.warning(f"Executable path not found for app {app_id}")
+        # Create context menu
+        menu = Gio.Menu()
+        menu.append("Open Install Directory", f"app.open-directory::{app_id}")
+        menu.append("Edit Launch Arguments", f"app.edit-arguments::{app_id}")
+
+        # Create popover menu
+        popover = Gtk.PopoverMenu()
+        popover.set_menu_model(menu)
+        popover.set_parent(gesture.get_widget())
+
+        # Position at click location
+        rect = Gdk.Rectangle()
+        rect.x = x
+        rect.y = y
+        rect.width = 1
+        rect.height = 1
+        popover.set_pointing_to(rect)
+
+        popover.popup()
 
     def _open_directory(self, directory: str):
         """Open a directory in the file manager."""
