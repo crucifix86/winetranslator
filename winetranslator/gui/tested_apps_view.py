@@ -12,14 +12,17 @@ import os
 import urllib.request
 import threading
 import logging
+import json
 
 from ..database.db import Database
 from ..core.runner_manager import RunnerManager
 from ..core.prefix_manager import PrefixManager
 from ..core.dependency_manager import DependencyManager
-from ..data.tested_apps import TESTED_APPS, CATEGORIES
 
 logger = logging.getLogger(__name__)
+
+# GitHub URL for tested apps database
+TESTED_APPS_URL = "https://raw.githubusercontent.com/crucifix86/winetranslator/main/tested_apps.json"
 
 
 class TestedAppsView(Gtk.Box):
@@ -34,25 +37,40 @@ class TestedAppsView(Gtk.Box):
         self.prefix_manager = prefix_manager
         self.dep_manager = dep_manager
 
+        # Initialize data
+        self.tested_apps = []
+        self.categories = ['All']
+        self.cache_path = os.path.join(
+            os.path.expanduser('~/.local/share/winetranslator'),
+            'tested_apps_cache.json'
+        )
+
         self._build_ui()
+        self._fetch_tested_apps()
 
     def _build_ui(self):
         """Build the tested apps UI."""
-        # Toolbar with category filter
+        # Toolbar with category filter and refresh button
         toolbar = Adw.HeaderBar()
         toolbar.add_css_class("flat")
         self.append(toolbar)
 
         # Category dropdown
-        category_model = Gtk.StringList()
-        for cat in CATEGORIES:
-            category_model.append(cat)
+        self.category_model = Gtk.StringList()
+        for cat in self.categories:
+            self.category_model.append(cat)
 
         self.category_dropdown = Gtk.DropDown()
-        self.category_dropdown.set_model(category_model)
+        self.category_dropdown.set_model(self.category_model)
         self.category_dropdown.set_selected(0)  # "All"
         self.category_dropdown.connect("notify::selected", self._on_category_changed)
         toolbar.set_title_widget(self.category_dropdown)
+
+        # Refresh button
+        refresh_button = Gtk.Button(icon_name="view-refresh-symbolic")
+        refresh_button.set_tooltip_text("Refresh tested apps list")
+        refresh_button.connect("clicked", self._on_refresh_clicked)
+        toolbar.pack_end(refresh_button)
 
         # Scrolled window for apps list
         scrolled = Gtk.ScrolledWindow()
@@ -84,14 +102,26 @@ class TestedAppsView(Gtk.Box):
             self.apps_list.remove(row)
 
         # Filter by category
-        apps = TESTED_APPS
+        apps = self.tested_apps
         if category != 'All':
-            apps = [app for app in TESTED_APPS if app['category'] == category]
+            apps = [app for app in self.tested_apps if app.get('category') == category]
 
         # Add app cards
-        for app in apps:
-            card = self._create_app_card(app)
-            self.apps_list.append(card)
+        if not apps:
+            # Show empty state
+            empty_label = Gtk.Label(label="No tested apps available.\nClick refresh to reload.")
+            empty_label.set_margin_top(48)
+            empty_label.set_margin_bottom(48)
+            empty_label.add_css_class("dim-label")
+            row = Gtk.ListBoxRow()
+            row.set_selectable(False)
+            row.set_activatable(False)
+            row.set_child(empty_label)
+            self.apps_list.append(row)
+        else:
+            for app in apps:
+                card = self._create_app_card(app)
+                self.apps_list.append(card)
 
     def _create_app_card(self, app):
         """Create a card for a tested app."""
@@ -167,8 +197,78 @@ class TestedAppsView(Gtk.Box):
     def _on_category_changed(self, dropdown, param):
         """Handle category filter change."""
         selected = dropdown.get_selected()
-        category = CATEGORIES[selected]
+        category = self.categories[selected] if selected < len(self.categories) else 'All'
         self._load_apps(category)
+
+    def _on_refresh_clicked(self, button):
+        """Handle refresh button click."""
+        logger.info("Refreshing tested apps list")
+        self._fetch_tested_apps()
+
+    def _fetch_tested_apps(self):
+        """Fetch tested apps from GitHub in background."""
+        def fetch_thread():
+            try:
+                logger.info(f"Fetching tested apps from {TESTED_APPS_URL}")
+                with urllib.request.urlopen(TESTED_APPS_URL, timeout=10) as response:
+                    data = json.loads(response.read().decode())
+                    logger.info(f"Successfully fetched tested apps: {len(data.get('apps', []))} apps")
+
+                    # Save to cache
+                    self._save_cache(data)
+
+                    # Update UI on main thread
+                    GLib.idle_add(self._on_apps_loaded, data)
+            except Exception as e:
+                logger.warning(f"Failed to fetch from GitHub: {e}. Loading from cache...")
+                # Try to load from cache
+                GLib.idle_add(self._load_from_cache)
+
+        thread = threading.Thread(target=fetch_thread, daemon=True)
+        thread.start()
+
+    def _on_apps_loaded(self, data):
+        """Handle apps data loaded successfully."""
+        self.tested_apps = data.get('apps', [])
+        self.categories = data.get('categories', ['All'])
+
+        # Update category dropdown
+        self.category_model.splice(0, len(self.category_model), self.categories)
+        self.category_dropdown.set_selected(0)
+
+        # Reload apps
+        self._load_apps()
+
+        logger.info(f"Loaded {len(self.tested_apps)} tested apps")
+        return False
+
+    def _load_from_cache(self):
+        """Load tested apps from local cache."""
+        try:
+            if os.path.exists(self.cache_path):
+                logger.info(f"Loading tested apps from cache: {self.cache_path}")
+                with open(self.cache_path, 'r') as f:
+                    data = json.load(f)
+                    self._on_apps_loaded(data)
+            else:
+                logger.warning("No cache file found")
+                # Show empty state
+                self._load_apps()
+        except Exception as e:
+            logger.error(f"Failed to load from cache: {e}")
+            self._load_apps()
+
+        return False
+
+    def _save_cache(self, data):
+        """Save tested apps data to local cache."""
+        try:
+            os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+            with open(self.cache_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"Saved tested apps to cache: {self.cache_path}")
+        except Exception as e:
+            logger.error(f"Failed to save cache: {e}")
 
     def _on_install_clicked(self, button, app):
         """Handle install button click."""
