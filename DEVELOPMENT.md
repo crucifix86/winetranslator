@@ -616,8 +616,135 @@ Build artifacts (gitignored):
 - Verify dependency detection works
 - Check right-click opens correct folder
 
+## Xbox Controller Support 🎮
+
+**Status**: Fully implemented with Wine's built-in support ✅
+
+### Features Implemented
+- ✅ Controller detection via `/dev/input/js*` devices
+- ✅ Automatic API detection (DirectInput vs XInput)
+- ✅ Three modes: Auto-detect, DirectInput (Legacy), XInput (Modern)
+- ✅ DirectInput support via Wine's built-in implementation
+- ✅ XInput support via Wine's built-in DirectInput translation
+- ✅ Per-game controller configuration
+- ✅ Context menu option: "Enable Controller Support"
+
+### How It Works
+
+**Controller Detection:**
+- Scans `/dev/input/js*` devices on system
+- Reads device names from `/sys/class/input/js{N}/device/name`
+- Filters for Xbox/Microsoft controllers
+- Shows detected controllers in dialog
+
+**API Detection:**
+- Checks game executable name for known XInput games (Skyrim, Fallout, Dark Souls, etc.)
+- Checks game directory for xinput DLLs
+- Auto-suggests appropriate mode based on detection
+- User can manually override detection
+
+**Three Controller Modes:**
+
+1. **Auto-Detect Mode**
+   - Checks game directory for `xinput1_3.dll`, `xinput1_4.dll`, etc.
+   - If found: Uses XInput mode
+   - If not found: Uses DirectInput mode
+   - Best for users who don't know which API their game uses
+
+2. **DirectInput Mode (Legacy)**
+   - For older games using DirectInput API
+   - Uses Wine's built-in DirectInput support
+   - Sets xinput DLLs to "builtin" in Wine registry
+   - No external dependencies needed
+   - Works with: Morrowind, Oblivion, GTA San Andreas, older games
+
+3. **XInput Mode (Modern)**
+   - For newer games using XInput API
+   - Uses Wine's built-in XInput implementation
+   - Sets xinput DLLs to "builtin" in Wine registry
+   - Wine automatically translates Linux DirectInput → Windows XInput
+   - Works with: Skyrim, Fallout, Dark Souls, Witcher 3, modern games
+   - No external tools or downloads required
+
+**Environment Variables (All Modes):**
+- `SDL_GAMECONTROLLERCONFIG=auto`
+- `SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS=1`
+- `WINE_ENABLE_GAMEPAD=1`
+- `WINE_ENABLE_HIDRAW=1`
+
+### Technical Implementation
+
+**DirectInput vs XInput:**
+- Windows has two controller APIs: DirectInput (legacy) and XInput (modern)
+- Wine's DirectInput works perfectly (`wine control joy.cpl` sees controllers)
+- Wine's built-in XInput implementation translates XInput calls to DirectInput
+- Solution: Use Wine's builtin XInput DLLs instead of native Windows DLLs
+
+**DLL Override Strategy:**
+- Both DirectInput and XInput modes: `builtin` (use Wine's implementation)
+- Wine's XInput DLLs automatically bridge to DirectInput
+- No external dependencies or tools needed
+- Simple, reliable, works out of the box
+
+### Known Game Compatibility
+
+**XInput Games (use XInput mode):**
+- Skyrim SE/LE ✅ Tested
+- Fallout 4, Fallout 3
+- Dark Souls series
+- Sekiro, Elden Ring
+- Witcher 3
+- Most games from ~2010+
+
+**DirectInput Games (use DirectInput mode):**
+- Morrowind, Oblivion
+- GTA San Andreas
+- Need for Speed series
+- Most games before ~2010
+
+### Files Modified
+- `winetranslator/gui/main_window.py` - Controller detection, API detection, and setup
+  - Added `_detect_controller_api()` - Detects DirectInput vs XInput games
+  - Modified `_show_enable_controller_dialog()` - Shows 3 mode options
+  - Modified `_on_enable_controller_response()` - Handles auto-detect and both modes
+  - Sets Wine DLL overrides to `builtin` for all xinput DLLs
+  - Sets controller environment variables (SDL, WINE_ENABLE_GAMEPAD, etc.)
+
+### Testing Commands
+```bash
+# Check controller device
+ls -la /dev/input/js*
+cat /sys/class/input/js0/device/name
+
+# Test Wine DirectInput
+WINEPREFIX=~/.local/share/winetranslator/prefixes/default wine control joy.cpl
+
+# Check DLL overrides (should show builtin)
+WINEPREFIX=~/.local/share/winetranslator/prefixes/default wine reg query 'HKEY_CURRENT_USER\Software\Wine\DllOverrides' | grep xinput
+
+# Launch game and test controller
+# Both XInput and DirectInput games should work with Wine's built-in support
+```
+
+### Usage
+1. Connect Xbox controller via USB
+2. Right-click game in WineTranslator library
+3. Select "Enable Controller Support"
+4. Choose mode:
+   - **Auto-Detect**: Let app decide (recommended)
+   - **DirectInput**: Force legacy mode
+   - **XInput**: Force modern mode (Wine builtin)
+5. Launch game and test controller
+
+### Troubleshooting
+- If controller doesn't work, try switching between DirectInput and XInput modes
+- Check logs: `tail -f ~/.local/share/winetranslator/winetranslator.log`
+- Verify controller detected: `cat /sys/class/input/js0/device/name`
+- Test Wine DirectInput: `wine control joy.cpl` (should respond to button presses)
+
 ## Future Steps
 
+- [ ] Add support for PlayStation and generic controllers
 - [ ] Runner version switching per-app
 - [ ] DXVK/VKD3D toggle switches
 - [ ] Application log viewer UI

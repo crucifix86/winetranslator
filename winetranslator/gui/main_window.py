@@ -326,6 +326,44 @@ class MainWindow(Adw.ApplicationWindow):
 
         return controllers
 
+    def _detect_controller_api(self, app_id: int):
+        """Detect which controller API a game likely uses (DirectInput or XInput)."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return "unknown"
+
+        exe_path = app.get('executable_path', '').lower()
+
+        # Check for common XInput indicators
+        xinput_indicators = [
+            'skyrim',           # Skyrim uses XInput
+            'fallout4',         # Fallout 4 uses XInput
+            'fallout3',         # Fallout 3 uses XInput
+            'witcher3',         # Witcher 3 uses XInput
+            'darksouls',        # Dark Souls uses XInput
+            'sekiro',           # Sekiro uses XInput
+            'eldenring',        # Elden Ring uses XInput
+        ]
+
+        # Check for common DirectInput indicators (older games)
+        dinput_indicators = [
+            'morrowind',        # Older Elder Scrolls games
+            'oblivion',         # Oblivion can use DirectInput
+            'gta_sa',           # GTA San Andreas
+            'nfs',              # Need for Speed series
+        ]
+
+        for indicator in xinput_indicators:
+            if indicator in exe_path:
+                return "xinput"
+
+        for indicator in dinput_indicators:
+            if indicator in exe_path:
+                return "dinput"
+
+        # Default to auto-detect (will check for xinput DLLs in game directory)
+        return "unknown"
+
     def _show_enable_controller_dialog(self, app_id: int):
         """Show dialog to enable controller support for an app."""
         app = self.app_launcher.get_application(app_id)
@@ -334,28 +372,55 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Detect controllers
         controllers = self._detect_xbox_controllers()
+        detected_api = self._detect_controller_api(app_id)
 
-        # Create dialog
+        # Create dialog with custom content
         dialog = Adw.MessageDialog.new(self)
         dialog.set_heading(f"Enable Controller Support - {app['name']}")
 
+        # Build dialog body
+        body_text = ""
         if controllers:
             controller_list = "\n".join([f"• {c['name']}" for c in controllers])
-            dialog.set_body(f"Detected Xbox controllers:\n{controller_list}\n\nThis will install XInput support and enable controller input for this game.")
+            body_text = f"Detected Xbox controllers:\n{controller_list}\n\n"
         else:
-            dialog.set_body("No Xbox controllers detected.\n\nMake sure your controller is connected. This will install XInput support for controller compatibility.")
+            body_text = "No Xbox controllers detected. Make sure your controller is connected.\n\n"
 
+        # Add API detection info
+        if detected_api == "xinput":
+            body_text += "This game appears to use XInput (modern controller API)."
+        elif detected_api == "dinput":
+            body_text += "This game appears to use DirectInput (legacy controller API)."
+        else:
+            body_text += "Controller API could not be detected automatically."
+
+        body_text += "\n\nChoose controller API:"
+        dialog.set_body(body_text)
+
+        # Add response options for different controller APIs
         dialog.add_response("cancel", "Cancel")
-        dialog.add_response("enable", "Enable Controller")
-        dialog.set_response_appearance("enable", Adw.ResponseAppearance.SUGGESTED)
+        dialog.add_response("auto", "Auto-Detect")
+        dialog.add_response("dinput", "DirectInput (Legacy)")
+        dialog.add_response("xinput", "XInput (Modern)")
+
+        # Set suggested response based on detection
+        if detected_api == "xinput":
+            dialog.set_response_appearance("xinput", Adw.ResponseAppearance.SUGGESTED)
+        elif detected_api == "dinput":
+            dialog.set_response_appearance("dinput", Adw.ResponseAppearance.SUGGESTED)
+        else:
+            dialog.set_response_appearance("auto", Adw.ResponseAppearance.SUGGESTED)
 
         dialog.connect("response", self._on_enable_controller_response, app_id)
         dialog.present()
 
     def _on_enable_controller_response(self, dialog, response, app_id: int):
         """Handle enable controller dialog response."""
-        if response != "enable":
+        if response == "cancel":
             return
+
+        # Determine which API to use
+        api_mode = response  # "auto", "dinput", or "xinput"
 
         app = self.app_launcher.get_application(app_id)
         if not app:
@@ -366,61 +431,96 @@ class MainWindow(Adw.ApplicationWindow):
         if not prefix:
             return
 
+        # Auto-detect mode: check game directory for xinput DLLs
+        if api_mode == "auto":
+            exe_path = app.get('executable_path', '')
+            if exe_path:
+                game_dir = os.path.dirname(exe_path)
+                # Check if game has xinput DLLs
+                has_xinput = any(os.path.exists(os.path.join(game_dir, f"xinput{ver}.dll"))
+                                for ver in ['1_4', '1_3', '1_2', '1_1', '9_1_0'])
+
+                if has_xinput:
+                    api_mode = "xinput"
+                    logger.info("Auto-detected XInput (found xinput DLLs in game directory)")
+                else:
+                    # Default to DirectInput for older/unknown games
+                    api_mode = "dinput"
+                    logger.info("Auto-detected DirectInput (no xinput DLLs found)")
+            else:
+                # Fallback to DirectInput if we can't check
+                api_mode = "dinput"
+                logger.info("Auto-detect fallback: using DirectInput")
+
         # Show progress
         progress_dialog = Adw.MessageDialog.new(self)
         progress_dialog.set_heading("Enabling Controller Support")
-        progress_dialog.set_body("Installing XInput dependencies...")
+        if api_mode == "xinput":
+            progress_dialog.set_body("Configuring XInput controller support...")
+        else:
+            progress_dialog.set_body("Configuring DirectInput controller support...")
         progress_dialog.present()
+
+        # Store API mode for completion message
+        self._controller_api_mode = api_mode
 
         def enable_thread():
             import subprocess
             from ..core.dependency_manager import DependencyManager
             dep_manager = DependencyManager(self.db)
 
-            # Install xinput dependencies
-            success, message = dep_manager.install_dependency(
-                prefix['path'],
-                'xinput',
-                prefix.get('runner_path')
-            )
-
-            if not success:
-                GLib.idle_add(self._on_controller_enabled, False, message, progress_dialog)
-                return
-
-            # Set environment variables for controller support
-            # SDL variables for SDL-based games
+            # Set common environment variables for controller support
             self.db.set_env_var(app_id, 'SDL_GAMECONTROLLERCONFIG', 'auto')
             self.db.set_env_var(app_id, 'SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS', '1')
-
-            # Wine-specific joystick/HID support (critical for Wine 8.0+)
             self.db.set_env_var(app_id, 'WINE_ENABLE_GAMEPAD', '1')
             self.db.set_env_var(app_id, 'WINE_ENABLE_HIDRAW', '1')
 
-            # Add DLL overrides for XInput to use native DLLs
-            # This is critical - Wine's built-in XInput doesn't support controllers properly
-            logger.info("Setting xinput DLL overrides to native")
             env = os.environ.copy()
             env['WINEPREFIX'] = prefix['path']
             if prefix.get('runner_path'):
                 env['WINE'] = prefix['runner_path']
 
-            # Set all xinput DLLs to native (prefer Windows DLLs over Wine's implementation)
-            xinput_dlls = ['xinput1_4', 'xinput1_3', 'xinput1_2', 'xinput1_1', 'xinput9_1_0', 'xinputuap']
-            for dll in xinput_dlls:
-                try:
-                    subprocess.run(
-                        ['wine', 'reg', 'add', 'HKEY_CURRENT_USER\\Software\\Wine\\DllOverrides',
-                         '/v', f'*{dll}', '/t', 'REG_SZ', '/d', 'native', '/f'],
-                        env=env,
-                        capture_output=True,
-                        timeout=10
-                    )
-                    logger.info(f"Set {dll} to native")
-                except Exception as e:
-                    logger.warning(f"Failed to set override for {dll}: {e}")
+            if api_mode == "dinput":
+                # DirectInput mode: Use Wine's built-in DirectInput support
+                logger.info("Configuring DirectInput controller support")
 
-            GLib.idle_add(self._on_controller_enabled, True, "Controller support enabled", progress_dialog)
+                # Set xinput DLLs to builtin (use Wine's implementation)
+                xinput_dlls = ['xinput1_4', 'xinput1_3', 'xinput1_2', 'xinput1_1', 'xinput9_1_0', 'xinputuap']
+                for dll in xinput_dlls:
+                    try:
+                        subprocess.run(
+                            ['wine', 'reg', 'add', 'HKEY_CURRENT_USER\\Software\\Wine\\DllOverrides',
+                             '/v', f'*{dll}', '/t', 'REG_SZ', '/d', 'builtin', '/f'],
+                            env=env,
+                            capture_output=True,
+                            timeout=10
+                        )
+                        logger.info(f"Set {dll} to builtin (Wine DirectInput)")
+                    except Exception as e:
+                        logger.warning(f"Failed to set override for {dll}: {e}")
+
+                GLib.idle_add(self._on_controller_enabled, True, "DirectInput controller support enabled", progress_dialog)
+
+            else:  # xinput mode
+                # XInput mode: Use Wine's built-in XInput support (DirectInput translation)
+                logger.info("Configuring XInput controller support (Wine builtin)")
+
+                # Set xinput DLLs to builtin (use Wine's implementation which supports DirectInput)
+                xinput_dlls = ['xinput1_4', 'xinput1_3', 'xinput1_2', 'xinput1_1', 'xinput9_1_0', 'xinputuap']
+                for dll in xinput_dlls:
+                    try:
+                        subprocess.run(
+                            ['wine', 'reg', 'add', 'HKEY_CURRENT_USER\\Software\\Wine\\DllOverrides',
+                             '/v', f'*{dll}', '/t', 'REG_SZ', '/d', 'builtin', '/f'],
+                            env=env,
+                            capture_output=True,
+                            timeout=10
+                        )
+                        logger.info(f"Set {dll} to builtin (Wine XInput)")
+                    except Exception as e:
+                        logger.warning(f"Failed to set override for {dll}: {e}")
+
+                GLib.idle_add(self._on_controller_enabled, True, "XInput controller support enabled (Wine builtin)", progress_dialog)
 
         thread = threading.Thread(target=enable_thread, daemon=True)
         thread.start()
@@ -432,7 +532,17 @@ class MainWindow(Adw.ApplicationWindow):
         if success:
             result_dialog = Adw.MessageDialog.new(self)
             result_dialog.set_heading("Controller Support Enabled")
-            result_dialog.set_body("XInput support has been installed and controller environment variables have been set.\n\nYour Xbox controller should now work in this game!")
+
+            # Show appropriate message based on API mode
+            api_mode = getattr(self, '_controller_api_mode', 'unknown')
+            if "xinput" in message.lower() or api_mode == "xinput":
+                body = "XInput support has been configured.\n\nWine's built-in XInput will translate DirectInput controller signals.\n\nYour Xbox controller should now work!"
+            elif "directinput" in message.lower() or api_mode == "dinput":
+                body = "DirectInput support has been configured.\n\nYour Xbox controller will work through Wine's DirectInput.\n\nYour Xbox controller should now work!"
+            else:
+                body = "Controller support has been enabled.\n\nYour Xbox controller should now work in this game!"
+
+            result_dialog.set_body(body)
             result_dialog.add_response("ok", "OK")
             result_dialog.present()
 
