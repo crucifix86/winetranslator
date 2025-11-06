@@ -74,6 +74,11 @@ class MainWindow(Adw.ApplicationWindow):
         edit_args_action.connect("activate", self._on_edit_arguments_action)
         app.add_action(edit_args_action)
 
+        # Change executable action (with parameter)
+        change_exe_action = Gio.SimpleAction.new("change-executable", GLib.VariantType.new("s"))
+        change_exe_action.connect("activate", self._on_change_executable_action)
+        app.add_action(change_exe_action)
+
     def _on_open_directory_action(self, action, parameter):
         """Handle open directory action from context menu."""
         app_id = int(parameter.get_string())
@@ -92,6 +97,69 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle edit arguments action from context menu."""
         app_id = int(parameter.get_string())
         self._show_edit_arguments_dialog(app_id)
+
+    def _on_change_executable_action(self, action, parameter):
+        """Handle change executable action from context menu."""
+        app_id = int(parameter.get_string())
+        self._show_change_executable_dialog(app_id)
+
+    def _show_change_executable_dialog(self, app_id: int):
+        """Show dialog to change the executable for an app."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        # Create file dialog
+        dialog = Gtk.FileDialog()
+        dialog.set_title("Select New Executable")
+
+        # Filter for .exe files
+        filter_exe = Gtk.FileFilter()
+        filter_exe.set_name("Windows Executables")
+        filter_exe.add_pattern("*.exe")
+        filter_exe.add_pattern("*.EXE")
+
+        filter_all = Gtk.FileFilter()
+        filter_all.set_name("All Files")
+        filter_all.add_pattern("*")
+
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(filter_exe)
+        filters.append(filter_all)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(filter_exe)
+
+        # Set initial folder to current executable's directory
+        current_exe = app.get('executable_path', '')
+        if current_exe and os.path.exists(current_exe):
+            exe_dir = os.path.dirname(current_exe)
+            initial_folder = Gio.File.new_for_path(exe_dir)
+            dialog.set_initial_folder(initial_folder)
+
+        dialog.open(self, None, lambda d, result: self._on_executable_selected(d, result, app_id))
+
+    def _on_executable_selected(self, dialog, result, app_id: int):
+        """Handle new executable file selection."""
+        try:
+            file = dialog.open_finish(result)
+            if file:
+                new_exe_path = file.get_path()
+                logger.info(f"Changing executable for app {app_id} to {new_exe_path}")
+
+                # Update the database
+                self.db.update_application(app_id, executable_path=new_exe_path)
+
+                # Refresh the UI
+                self._refresh_applications()
+
+                # Show success toast
+                toast = Adw.Toast.new(f"Executable changed to {os.path.basename(new_exe_path)}")
+                toast.set_timeout(3)
+                self.toast_overlay.add_toast(toast)
+
+        except GLib.Error as e:
+            if e.code != 2:  # Ignore dismiss
+                logger.error(f"Error selecting executable: {e}", exc_info=True)
 
     def _show_edit_arguments_dialog(self, app_id: int):
         """Show dialog to edit launch arguments."""
@@ -349,6 +417,7 @@ class MainWindow(Adw.ApplicationWindow):
         menu = Gio.Menu()
         menu.append("Open Install Directory", f"app.open-directory::{app_id}")
         menu.append("Edit Launch Arguments", f"app.edit-arguments::{app_id}")
+        menu.append("Change Executable", f"app.change-executable::{app_id}")
 
         # Create popover menu
         popover = Gtk.PopoverMenu()
