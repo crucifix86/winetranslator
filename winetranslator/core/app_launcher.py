@@ -97,20 +97,31 @@ class AppLauncher:
         Returns:
             Tuple of (success, message, app_id)
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"AppLauncher.add_application called: name={name}, exe={executable_path}, prefix_id={prefix_id}")
+
         # Verify executable exists
         if not os.path.isfile(executable_path):
+            logger.error(f"Executable not found: {executable_path}")
             return False, f"Executable not found: {executable_path}", None
 
+        logger.info("Executable exists, getting prefix")
         # Verify prefix exists
         prefix = self.db.get_prefix(prefix_id)
         if not prefix:
+            logger.error(f"Invalid prefix: {prefix_id}")
             return False, "Invalid prefix", None
 
+        logger.info(f"Prefix found: {prefix['name']}")
         # Set default working directory if not provided
         if not working_directory:
             working_directory = os.path.dirname(executable_path)
+        logger.info(f"Working directory: {working_directory}")
 
         try:
+            logger.info("Calling db.add_application...")
             app_id = self.db.add_application(
                 name=name,
                 executable_path=executable_path,
@@ -120,9 +131,11 @@ class AppLauncher:
                 arguments=arguments,
                 description=description
             )
+            logger.info(f"db.add_application returned app_id={app_id}")
             return True, f"Application '{name}' added successfully", app_id
 
         except Exception as e:
+            logger.error(f"Exception in add_application: {str(e)}", exc_info=True)
             return False, f"Failed to add application: {str(e)}", None
 
     def remove_application(self, app_id: int) -> tuple[bool, str]:
