@@ -207,10 +207,20 @@ class DependencyManager:
             required.update(['sound', 'dsound', 'xact'])
 
         # Check if this looks like a game (common game patterns)
-        is_game = any(marker in exe_name for marker in ['game', 'launcher', 'setup'])
-        if is_game:
+        game_patterns = ['game', 'launcher', 'skyrim', 'fallout', 'witcher',
+                        'gta', 'grand theft auto', 'assassin', 'creed']
+        is_game = any(marker in exe_name for marker in game_patterns)
+
+        # Check for Special/Anniversary Edition markers (Skyrim, etc)
+        is_enhanced_edition = any(marker in exe_name for marker in ['se.exe', 'ae.exe', 'special', 'anniversary'])
+
+        if is_game or is_enhanced_edition:
+            # Modern games need VC++ runtimes and DirectX
+            required.update(['vcrun2019', 'vcrun2015', 'd3dx9', 'dxvk'])
             # Games typically need audio
             required.update(['sound', 'dsound'])
+            # Add fonts for better text rendering
+            required.add('corefonts')
 
         # Default: add essentials if nothing specific detected
         if not required:
