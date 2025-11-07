@@ -126,7 +126,7 @@ class WineTranslatorApp(Adw.Application):
             application_name="WineTranslator",
             application_icon="application-x-executable-symbolic",
             developer_name="WineTranslator Team",
-            version="0.3.0",
+            version="0.5.0",
             website="https://github.com/crucifix86/winetranslator",
             issue_url="https://github.com/crucifix86/winetranslator/issues",
             license_type=Gtk.License.GPL_3_0,
