@@ -338,6 +338,15 @@ class Database:
         """, (app_id,))
         return {row['key']: row['value'] for row in cursor.fetchall()}
 
+    def get_env_var(self, app_id: int, key: str) -> Optional[str]:
+        """Get a specific environment variable for an application."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT value FROM env_variables WHERE app_id = ? AND key = ?
+        """, (app_id, key))
+        row = cursor.fetchone()
+        return row['value'] if row else None
+
     def delete_env_var(self, app_id: int, key: str):
         """Delete an environment variable for an application."""
         cursor = self.conn.cursor()

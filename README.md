@@ -10,6 +10,7 @@ A simple, easy-to-use Wine GUI for running Windows applications on Linux with au
 - **Desktop shortcuts** - Create shortcuts on your Desktop for quick access
 - **Context menu** - Right-click apps for quick actions (open directory, edit arguments, etc.)
 - **Launch arguments** - Add command-line arguments per-app (like -console, -windowed, -fullscreen)
+- **Virtual Desktop mode** - Prevent fullscreen games from locking up your screen (perfect for EverQuest, etc.)
 - **Wine C: drive access** - Quick button to open the Wine prefix drive_c folder
 - **Xbox controller support** - Automatic detection and XInput installation for gamepad-enabled games
 - **Audio support** - Automatic audio configuration (PulseAudio/PipeWire/ALSA detection)
@@ -173,6 +174,7 @@ Shortcuts use the `winetranslator-launch` command and work perfectly with your d
 - **Change Executable** - Switch to a different .exe file without removing the app
 - **Manage Dependencies** - Manually install additional dependencies if needed
 - **Enable Controller Support** - Set up Xbox controller support for games
+- **Enable/Disable Virtual Desktop** - Run games in a contained window to prevent fullscreen lockup
 
 Perfect for:
 - Switching from launcher to actual game exe (e.g., SkyrimSELauncher.exe → SkyrimSE.exe)
@@ -206,6 +208,44 @@ Quick access to Wine prefix files:
 3. Browse the Windows C: drive (drive_c folder)
 
 Perfect for finding game files, save locations, or manually installing mods.
+
+### Virtual Desktop Mode (Fullscreen Fix)
+
+Prevent games from taking over your entire screen with Wine's Virtual Desktop mode:
+
+**The Problem:**
+Some games (like EverQuest, older DirectX games) take exclusive control of your display in fullscreen mode, making it impossible to Alt+Tab out without logging out.
+
+**The Solution:**
+Virtual Desktop mode runs the game in a contained Wine window. The game thinks it's fullscreen, but it's actually inside a resizable window that you can easily switch away from.
+
+**How to use:**
+1. Right-click any game in Library
+2. Select **"Enable Virtual Desktop"**
+3. Choose a resolution for the window (e.g., 1920x1080, 2560x1440)
+4. Launch your game - it now runs in a contained window
+5. Alt+Tab works perfectly!
+
+**Benefits:**
+- ✅ Easy Alt+Tab between applications
+- ✅ Game stays contained on one monitor (great for multi-monitor setups)
+- ✅ No more screen resolution changes when launching/closing games
+- ✅ Can resize or minimize the game window anytime
+- ✅ Prevents games from "stealing" keyboard focus
+
+**When to use:**
+- Games that lock up the screen in fullscreen mode
+- Older DirectX games (EverQuest, WoW Classic, etc.)
+- Games that cause resolution flickering
+- Multi-monitor setups where you want games on one screen
+- Any time you want easy Alt+Tab capability
+
+**When NOT to use:**
+- If the game works fine in fullscreen already
+- If you want native fullscreen for best performance
+- If the game has its own windowed mode that works well
+
+To disable Virtual Desktop, right-click the game and select **"Disable Virtual Desktop"**.
 
 ### Xbox Controller Support
 

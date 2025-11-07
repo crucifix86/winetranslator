@@ -335,8 +335,20 @@ def launch_wine_application(wine_path: str, prefix_path: str, exe_path: str,
     if env_vars:
         env.update(env_vars)
 
+    # Check for virtual desktop configuration
+    # This prevents fullscreen games from taking over the entire screen
+    virtual_desktop_enabled = env_vars and env_vars.get('WINE_VIRTUAL_DESKTOP_ENABLED') == '1'
+    virtual_desktop_resolution = env_vars.get('WINE_VIRTUAL_DESKTOP_RESOLUTION', '1920x1080') if env_vars else '1920x1080'
+
     # Build command
-    cmd = [wine_path, exe_path]
+    if virtual_desktop_enabled:
+        logger.info(f"Enabling Wine virtual desktop mode: {virtual_desktop_resolution}")
+        # Use wine explorer /desktop to launch in a virtual desktop window
+        # This keeps the game contained and allows Alt+Tab to work
+        cmd = [wine_path, 'explorer', f'/desktop=WineTranslator,{virtual_desktop_resolution}', exe_path]
+    else:
+        cmd = [wine_path, exe_path]
+
     if args:
         cmd.extend(args)
 

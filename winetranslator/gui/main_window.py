@@ -94,6 +94,11 @@ class MainWindow(Adw.ApplicationWindow):
         remap_controller_action.connect("activate", self._on_remap_controller_action)
         app.add_action(remap_controller_action)
 
+        # Toggle virtual desktop action (with parameter)
+        toggle_virtual_desktop_action = Gio.SimpleAction.new("toggle-virtual-desktop", GLib.VariantType.new("s"))
+        toggle_virtual_desktop_action.connect("activate", self._on_toggle_virtual_desktop_action)
+        app.add_action(toggle_virtual_desktop_action)
+
     def _on_open_directory_action(self, action, parameter):
         """Handle open directory action from context menu."""
         app_id = int(parameter.get_string())
@@ -302,6 +307,119 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle remap controller action from context menu."""
         app_id = int(parameter.get_string())
         self._show_remap_controller_dialog(app_id)
+
+    def _on_toggle_virtual_desktop_action(self, action, parameter):
+        """Handle toggle virtual desktop action from context menu."""
+        app_id = int(parameter.get_string())
+        self._show_virtual_desktop_dialog(app_id)
+
+    def _show_virtual_desktop_dialog(self, app_id: int):
+        """Show dialog to configure virtual desktop settings."""
+        app = self.app_launcher.get_application(app_id)
+        if not app:
+            return
+
+        # Check current state
+        vd_enabled = self.db.get_env_var(app_id, 'WINE_VIRTUAL_DESKTOP_ENABLED')
+        current_resolution = self.db.get_env_var(app_id, 'WINE_VIRTUAL_DESKTOP_RESOLUTION') or '1920x1080'
+
+        if vd_enabled == '1':
+            # Currently enabled - show disable confirmation
+            dialog = Adw.MessageDialog.new(self)
+            dialog.set_heading("Disable Virtual Desktop?")
+            dialog.set_body(
+                f"Virtual Desktop mode is currently enabled for {app['name']}.\n\n"
+                "Disabling it will allow the game to use fullscreen mode, which may "
+                "take over your entire screen and make Alt+Tab difficult."
+            )
+            dialog.add_response("cancel", "Cancel")
+            dialog.add_response("disable", "Disable")
+            dialog.set_response_appearance("disable", Adw.ResponseAppearance.DESTRUCTIVE)
+            dialog.connect("response", self._on_virtual_desktop_disable_response, app_id)
+        else:
+            # Currently disabled - show enable dialog with resolution options
+            dialog = Adw.MessageDialog.new(self)
+            dialog.set_heading("Enable Virtual Desktop?")
+            dialog.set_body(
+                f"Virtual Desktop mode will run {app['name']} in a contained Wine window.\n\n"
+                "This prevents fullscreen games from taking over your entire screen, "
+                "making it easy to Alt+Tab to other applications.\n\n"
+                "Choose a resolution for the virtual desktop window:"
+            )
+
+            # Add resolution selection
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            box.set_margin_top(10)
+            box.set_margin_bottom(10)
+            box.set_margin_start(10)
+            box.set_margin_end(10)
+
+            # Resolution dropdown
+            resolution_label = Gtk.Label(label="Resolution:")
+            resolution_label.set_xalign(0)
+            box.append(resolution_label)
+
+            resolutions = [
+                "1920x1080", "2560x1440", "3840x2160",  # Common 16:9
+                "1680x1050", "1920x1200", "2560x1600",  # Common 16:10
+                "1366x768", "1600x900", "1280x720"      # Other common
+            ]
+
+            resolution_dropdown = Gtk.DropDown.new_from_strings(resolutions)
+            # Set current selection
+            try:
+                current_idx = resolutions.index(current_resolution)
+                resolution_dropdown.set_selected(current_idx)
+            except ValueError:
+                resolution_dropdown.set_selected(0)  # Default to 1920x1080
+
+            box.append(resolution_dropdown)
+
+            dialog.set_extra_child(box)
+            dialog.add_response("cancel", "Cancel")
+            dialog.add_response("enable", "Enable")
+            dialog.set_response_appearance("enable", Adw.ResponseAppearance.SUGGESTED)
+
+            dialog.resolution_dropdown = resolution_dropdown  # Store reference
+            dialog.connect("response", self._on_virtual_desktop_enable_response, app_id)
+
+        dialog.present()
+
+    def _on_virtual_desktop_enable_response(self, dialog, response, app_id: int):
+        """Handle virtual desktop enable response."""
+        if response == "enable":
+            # Get selected resolution
+            selected_idx = dialog.resolution_dropdown.get_selected()
+            resolutions = [
+                "1920x1080", "2560x1440", "3840x2160",
+                "1680x1050", "1920x1200", "2560x1600",
+                "1366x768", "1600x900", "1280x720"
+            ]
+            resolution = resolutions[selected_idx]
+
+            # Enable virtual desktop
+            self.db.set_env_var(app_id, 'WINE_VIRTUAL_DESKTOP_ENABLED', '1')
+            self.db.set_env_var(app_id, 'WINE_VIRTUAL_DESKTOP_RESOLUTION', resolution)
+
+            app = self.app_launcher.get_application(app_id)
+            toast = Adw.Toast.new(f"Virtual Desktop enabled for {app['name']} ({resolution})")
+            toast.set_timeout(3)
+            self.toast_overlay.add_toast(toast)
+
+            logger.info(f"Enabled virtual desktop for app {app_id} with resolution {resolution}")
+
+    def _on_virtual_desktop_disable_response(self, dialog, response, app_id: int):
+        """Handle virtual desktop disable response."""
+        if response == "disable":
+            # Disable virtual desktop
+            self.db.set_env_var(app_id, 'WINE_VIRTUAL_DESKTOP_ENABLED', '0')
+
+            app = self.app_launcher.get_application(app_id)
+            toast = Adw.Toast.new(f"Virtual Desktop disabled for {app['name']}")
+            toast.set_timeout(3)
+            self.toast_overlay.add_toast(toast)
+
+            logger.info(f"Disabled virtual desktop for app {app_id}")
 
     def _show_remap_controller_dialog(self, app_id: int):
         """Show controller button remapping dialog."""
@@ -850,6 +968,11 @@ class MainWindow(Adw.ApplicationWindow):
         menu.append("Manage Dependencies", f"app.manage-dependencies::{app_id}")
         menu.append("Enable Controller Support", f"app.enable-controller::{app_id}")
         menu.append("Remap Controller Buttons", f"app.remap-controller::{app_id}")
+
+        # Check if virtual desktop is currently enabled
+        vd_enabled = self.db.get_env_var(app_id, 'WINE_VIRTUAL_DESKTOP_ENABLED')
+        vd_label = "Disable Virtual Desktop" if vd_enabled == '1' else "Enable Virtual Desktop"
+        menu.append(vd_label, f"app.toggle-virtual-desktop::{app_id}")
 
         # Create popover menu
         popover = Gtk.PopoverMenu()
