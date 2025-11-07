@@ -89,6 +89,11 @@ class MainWindow(Adw.ApplicationWindow):
         enable_controller_action.connect("activate", self._on_enable_controller_action)
         app.add_action(enable_controller_action)
 
+        # Remap controller action (with parameter)
+        remap_controller_action = Gio.SimpleAction.new("remap-controller", GLib.VariantType.new("s"))
+        remap_controller_action.connect("activate", self._on_remap_controller_action)
+        app.add_action(remap_controller_action)
+
     def _on_open_directory_action(self, action, parameter):
         """Handle open directory action from context menu."""
         app_id = int(parameter.get_string())
@@ -292,6 +297,31 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle enable controller action from context menu."""
         app_id = int(parameter.get_string())
         self._show_enable_controller_dialog(app_id)
+
+    def _on_remap_controller_action(self, action, parameter):
+        """Handle remap controller action from context menu."""
+        app_id = int(parameter.get_string())
+        self._show_remap_controller_dialog(app_id)
+
+    def _show_remap_controller_dialog(self, app_id: int):
+        """Show controller button remapping dialog."""
+        from .controller_remap_dialog import ControllerRemapDialog
+
+        # Get current mapping if any
+        current_mapping = self.db.get_config(app_id, 'controller_mapping')
+
+        # Show remapping dialog
+        try:
+            dialog = ControllerRemapDialog(self, app_id, current_mapping)
+            dialog.present()
+        except RuntimeError as e:
+            # No controller detected
+            error_dialog = Adw.MessageDialog.new(self)
+            error_dialog.set_heading("No Controller Detected")
+            error_dialog.set_body("Please connect an Xbox controller and try again.")
+            error_dialog.add_response("ok", "OK")
+            error_dialog.present()
+            logger.error(f"Failed to open controller remapping dialog: {e}")
 
     def _detect_xbox_controllers(self):
         """Detect connected Xbox controllers."""
@@ -819,6 +849,7 @@ class MainWindow(Adw.ApplicationWindow):
         menu.append("Change Executable", f"app.change-executable::{app_id}")
         menu.append("Manage Dependencies", f"app.manage-dependencies::{app_id}")
         menu.append("Enable Controller Support", f"app.enable-controller::{app_id}")
+        menu.append("Remap Controller Buttons", f"app.remap-controller::{app_id}")
 
         # Create popover menu
         popover = Gtk.PopoverMenu()

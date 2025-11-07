@@ -67,6 +67,11 @@ class AppLauncher:
         if large_address:
             env_vars['WINE_LARGE_ADDRESS_AWARE'] = '1'
 
+        # Apply custom controller mapping if set
+        controller_mapping = self.db.get_config(app_id, 'controller_mapping')
+        if controller_mapping:
+            env_vars['SDL_GAMECONTROLLERCONFIG'] = controller_mapping
+
         try:
             # Launch the application
             process = launch_wine_application(
